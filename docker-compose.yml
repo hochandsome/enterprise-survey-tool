@@ -7,20 +7,21 @@ services:
     env_file:
       - .env
     depends_on:
-      - postgres
+      - mysql
 
-  postgres:
-    image: postgres:16-alpine
-    container_name: survey-postgres
+  mysql:
+    image: mysql:8.0-alpine
+    container_name: survey-mysql
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: survey
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: survey
+      MYSQL_USER: survey
+      MYSQL_PASSWORD: survey123
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - pg-data:/var/lib/postgresql/data
+      - mysql-data:/var/lib/mysql
 
 volumes:
-  pg-data:
+  mysql-data:

@@ -29,20 +29,45 @@ Mở:
 
 ## Cấu hình môi trường
 
-- `DB_PROVIDER=json|postgres` (mặc định `json`)
+- `DB_PROVIDER=json|postgres|mysql` (mặc định `json`)
 - `DATABASE_URL=postgresql://...` (bắt buộc khi dùng postgres)
-- `REMINDER_AFTER_DAYS=3`
-- SMTP:
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
-- `SMTP_TEST_TO` (optional)
 
-## SMTP gửi mail thật
+### MySQL mode (local development / production)
 
-1. Điền SMTP vào `.env`.
-2. Vào trang admin và dùng ô `Email test SMTP` để bấm gửi test.
-3. Nếu SMTP chưa đúng, mục `System Status` sẽ hiện lỗi verify.
+1. **Cài MySQL Server**:
+   - **Windows**: Tải từ [mysql.com](https://dev.mysql.com/downloads/mysql/) hoặc dùng [XAMPP](https://www.apachefriends.org/)
+   - **macOS**: `brew install mysql` rồi `brew services start mysql`
+   - **Linux**: `sudo apt install mysql-server` hoặc `sudo yum install mysql-server`
 
-## PostgreSQL mode (production)
+2. **Tạo database**:
+   ```sql
+   CREATE DATABASE survey;
+   CREATE USER 'survey'@'localhost' IDENTIFIED BY 'survey123';
+   GRANT ALL PRIVILEGES ON survey.* TO 'survey'@'localhost';
+   FLUSH PRIVILEGES;
+   ```
+
+3. **Cập nhật `.env`**:
+   ```
+   DB_PROVIDER=mysql
+   MYSQL_HOST=localhost
+   MYSQL_PORT=3306
+   MYSQL_USER=survey
+   MYSQL_PASSWORD=survey123
+   MYSQL_DATABASE=survey
+   ```
+
+4. **Chạy migration** (chuyển dữ liệu từ JSON cũ sang MySQL):
+   ```bash
+   node migrate-to-mysql.js
+   ```
+
+5. **Khởi động app**:
+   ```bash
+   npm start
+   ```
+
+### PostgreSQL mode (production)
 
 1. Sửa `.env`:
 	- `DB_PROVIDER=postgres`

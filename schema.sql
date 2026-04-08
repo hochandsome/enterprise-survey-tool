@@ -1,0 +1,111 @@
+-- MySQL Schema for Survey Tool
+
+CREATE TABLE IF NOT EXISTS templates (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS templateQuestions (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  templateId INT NOT NULL,
+  type VARCHAR(50) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  required BOOLEAN DEFAULT FALSE,
+  options JSON,
+  section VARCHAR(255),
+  sortOrder INT DEFAULT 0,
+  FOREIGN KEY (templateId) REFERENCES templates(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS companies (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(255) NOT NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS surveys (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  companyId INT,
+  templateId INT NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  status VARCHAR(50) DEFAULT 'draft',
+  sections JSON,
+  setup JSON,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (companyId) REFERENCES companies(id) ON DELETE SET NULL,
+  FOREIGN KEY (templateId) REFERENCES templates(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS surveyQuestions (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  surveyId INT NOT NULL,
+  templateQuestionId INT NOT NULL,
+  type VARCHAR(50) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  required BOOLEAN DEFAULT FALSE,
+  options JSON,
+  section VARCHAR(255),
+  sortOrder INT DEFAULT 0,
+  FOREIGN KEY (surveyId) REFERENCES surveys(id) ON DELETE CASCADE,
+  FOREIGN KEY (templateQuestionId) REFERENCES templateQuestions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS recipients (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  surveyId INT NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  sent BOOLEAN DEFAULT FALSE,
+  sentAt TIMESTAMP NULL,
+  completedAt TIMESTAMP NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (surveyId) REFERENCES surveys(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS drafts (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  surveyId INT NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  progress JSON,
+  progressPercentage INT DEFAULT 0,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (surveyId) REFERENCES surveys(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS submissions (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  surveyId INT NOT NULL,
+  email VARCHAR(255),
+  anonymous BOOLEAN DEFAULT FALSE,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (surveyId) REFERENCES surveys(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS submissionAnswers (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  submissionId INT NOT NULL,
+  surveyQuestionId INT NOT NULL,
+  answer TEXT,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (submissionId) REFERENCES submissions(id) ON DELETE CASCADE,
+  FOREIGN KEY (surveyQuestionId) REFERENCES surveyQuestions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS counters (
+  keyName VARCHAR(100) PRIMARY KEY,
+  value INT DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Initialize counters
+INSERT IGNORE INTO counters (keyName, value) VALUES
+  ('templates', 0),
+  ('templateQuestions', 0),
+  ('companies', 0),
+  ('surveys', 0),
+  ('surveyQuestions', 0),
+  ('recipients', 0),
+  ('drafts', 0),
+  ('submissions', 0),
+  ('submissionAnswers', 0);
