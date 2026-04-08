@@ -12,6 +12,11 @@ const app = express();
 const port = Number(process.env.PORT || 3000);
 const baseUrl = process.env.BASE_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`;
 const reminderAfterDays = Number(process.env.REMINDER_AFTER_DAYS || 3);
+const adminUsername = process.env.ADMIN_USERNAME || "phungthaihoc";
+const adminPassword = process.env.ADMIN_PASSWORD || "123";
+const sessionSecret = process.env.SESSION_SECRET || "dev-session-secret-change-me";
+const sessionTtlMs = 1000 * 60 * 60 * 24;
+const sessions = new Map();
 
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
@@ -58,8 +63,122 @@ function writeDb(data) {
   }
 }
 
+function parseCookies(req) {
+  const raw = req.headers.cookie || "";
+  const cookies = {};
+  raw.split(";").forEach((entry) => {
+    const [k, ...v] = entry.trim().split("=");
+    if (!k) return;
+    cookies[k] = decodeURIComponent(v.join("="));
+  });
+  return cookies;
+}
+
+function createSignature(token) {
+  return crypto.createHmac("sha256", sessionSecret).update(token).digest("hex");
+}
+
+function buildSessionCookie(token) {
+  const signature = createSignature(token);
+  return `${token}.${signature}`;
+}
+
+function verifySessionCookie(value) {
+  if (!value || !value.includes(".")) return null;
+  const lastDot = value.lastIndexOf(".");
+  const token = value.slice(0, lastDot);
+  const signature = value.slice(lastDot + 1);
+  if (signature !== createSignature(token)) return null;
+  return token;
+}
+
+function setSessionCookie(res, token) {
+  const secure = process.env.NODE_ENV === "production";
+  const maxAge = Math.floor(sessionTtlMs / 1000);
+  const cookieValue = buildSessionCookie(token);
+  const flags = [
+    `admin_session=${encodeURIComponent(cookieValue)}`,
+    "Path=/",
+    `Max-Age=${maxAge}`,
+    "HttpOnly",
+    "SameSite=Lax",
+  ];
+  if (secure) flags.push("Secure");
+  res.setHeader("Set-Cookie", flags.join("; "));
+}
+
+function clearSessionCookie(res) {
+  const secure = process.env.NODE_ENV === "production";
+  const flags = ["admin_session=", "Path=/", "Max-Age=0", "HttpOnly", "SameSite=Lax"];
+  if (secure) flags.push("Secure");
+  res.setHeader("Set-Cookie", flags.join("; "));
+}
+
+function getSessionUser(req) {
+  const cookies = parseCookies(req);
+  const token = verifySessionCookie(cookies.admin_session);
+  if (!token) return null;
+
+  const session = sessions.get(token);
+  if (!session) return null;
+  if (session.expiresAt < Date.now()) {
+    sessions.delete(token);
+    return null;
+  }
+  return session.username;
+}
+
+function requireAdminApi(req, res, next) {
+  const username = getSessionUser(req);
+  if (!username) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  req.adminUser = username;
+  next();
+}
+
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
+});
+
+app.post("/api/auth/login", (req, res) => {
+  const username = String(req.body?.username || "").trim();
+  const password = String(req.body?.password || "").trim();
+
+  if (username !== adminUsername || password !== adminPassword) {
+    return res.status(401).json({ error: "Sai tài khoản hoặc mật khẩu" });
+  }
+
+  const token = randomToken();
+  sessions.set(token, {
+    username,
+    expiresAt: Date.now() + sessionTtlMs,
+  });
+  setSessionCookie(res, token);
+
+  res.json({ ok: true, username });
+});
+
+app.post("/api/auth/logout", (req, res) => {
+  const cookies = parseCookies(req);
+  const token = verifySessionCookie(cookies.admin_session);
+  if (token) sessions.delete(token);
+  clearSessionCookie(res);
+  res.json({ ok: true });
+});
+
+app.get("/api/auth/me", (req, res) => {
+  const username = getSessionUser(req);
+  if (!username) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  res.json({ ok: true, username });
+});
+
+app.use("/api", (req, res, next) => {
+  if (req.path === "/auth/login") return next();
+  if (req.path.startsWith("/respond/")) return next();
+  return requireAdminApi(req, res, next);
 });
 
 app.get("/api/system/status", async (_req, res) => {
@@ -575,8 +694,25 @@ setInterval(() => {
   });
 }, 60 * 60 * 1000);
 
-app.get("/admin", (_req, res) => {
+setInterval(() => {
+  const nowTs = Date.now();
+  for (const [token, session] of sessions.entries()) {
+    if (session.expiresAt < nowTs) {
+      sessions.delete(token);
+    }
+  }
+}, 5 * 60 * 1000);
+
+app.get("/admin", (req, res) => {
+  const username = getSessionUser(req);
+  if (!username) {
+    return res.redirect("/login");
+  }
   res.sendFile(path.join(__dirname, "..", "public", "admin.html"));
+});
+
+app.get("/login", (_req, res) => {
+  res.sendFile(path.join(__dirname, "..", "public", "login.html"));
 });
 
 app.get("/s/:token", (_req, res) => {

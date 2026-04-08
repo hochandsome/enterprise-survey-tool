@@ -45,6 +45,13 @@
         margin-bottom: 8px;
       }
 
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+
       .sub {
         color: var(--muted);
         margin-top: 0;
@@ -113,6 +120,12 @@
         color: #0e3a79;
         border: 1px solid var(--line);
         box-shadow: none;
+      }
+
+      .logout-btn {
+        width: auto;
+        margin: 0;
+        padding: 10px 14px;
       }
 
       .row {
@@ -211,7 +224,10 @@
   </head>
   <body>
     <div class="wrap">
-      <h1 class="title">Survey Admin Console</h1>
+      <div class="topbar">
+        <h1 class="title">Survey Admin Console</h1>
+        <button class="secondary logout-btn" id="logoutBtn">Đăng xuất</button>
+      </div>
       <p class="sub">Tạo template, tạo cuộc khảo sát cho doanh nghiệp, gửi mail và theo dõi realtime dashboard.</p>
 
       <div class="grid">
@@ -295,6 +311,16 @@
           status: null,
           scale: null,
         },
+      };
+
+      const nativeFetch = window.fetch.bind(window);
+      window.fetch = async (...args) => {
+        const res = await nativeFetch(...args);
+        if (res.status === 401) {
+          location.href = '/login';
+          throw new Error('Unauthorized');
+        }
+        return res;
       };
 
       function escapeHtml(text) {
@@ -642,6 +668,10 @@
       };
 
       document.getElementById('refreshDashboardBtn').onclick = refreshDashboard;
+      document.getElementById('logoutBtn').onclick = async () => {
+        await nativeFetch('/api/auth/logout', { method: 'POST' });
+        location.href = '/login';
+      };
 
       async function boot() {
         await loadSystemStatus();

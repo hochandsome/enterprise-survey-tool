@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Login</title>
+    <style>
+      :root {
+        --bg: #eef4ff;
+        --card: rgba(255, 255, 255, 0.86);
+        --ink: #101828;
+        --muted: #475467;
+        --line: #d1ddff;
+        --brand: #0f7bff;
+        --brand2: #00b8d9;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: "Segoe UI", Tahoma, sans-serif;
+        background:
+          radial-gradient(circle at 15% 15%, rgba(15, 123, 255, 0.2), transparent 32%),
+          radial-gradient(circle at 85% 20%, rgba(0, 184, 217, 0.2), transparent 30%),
+          var(--bg);
+      }
+
+      .card {
+        width: min(420px, 92vw);
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 22px;
+        box-shadow: 0 18px 40px rgba(16, 24, 40, 0.15);
+        backdrop-filter: blur(8px);
+      }
+
+      h1 {
+        margin: 0 0 6px;
+        font-size: 28px;
+      }
+
+      p {
+        margin: 0 0 18px;
+        color: var(--muted);
+      }
+
+      label {
+        display: block;
+        margin-top: 10px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      input, button {
+        width: 100%;
+        margin-top: 6px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 11px 12px;
+        font-size: 15px;
+      }
+
+      input:focus {
+        outline: none;
+        border-color: var(--brand);
+        box-shadow: 0 0 0 4px rgba(15, 123, 255, 0.14);
+      }
+
+      button {
+        margin-top: 14px;
+        border: 0;
+        color: #fff;
+        font-weight: 600;
+        background: linear-gradient(130deg, var(--brand), var(--brand2));
+        cursor: pointer;
+      }
+
+      .error {
+        color: #b42318;
+        min-height: 20px;
+        margin-top: 8px;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <form class="card" id="loginForm">
+      <h1>Admin Login</h1>
+      <p>Đăng nhập để vào dashboard quản trị khảo sát.</p>
+      <label>Tài khoản
+        <input id="username" autocomplete="username" value="phungthaihoc" required />
+      </label>
+      <label>Mật khẩu
+        <input id="password" type="password" autocomplete="current-password" value="123" required />
+      </label>
+      <button type="submit">Đăng nhập</button>
+      <div class="error" id="errorText"></div>
+    </form>
+
+    <script>
+      const form = document.getElementById('loginForm');
+      const errorText = document.getElementById('errorText');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errorText.textContent = '';
+
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value.trim();
+
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          errorText.textContent = data.error || 'Đăng nhập thất bại';
+          return;
+        }
+
+        location.href = '/admin';
+      });
+    </script>
+  </body>
+</html>
