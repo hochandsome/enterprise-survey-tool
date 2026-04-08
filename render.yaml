@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: jw
+    name: jw-hochandsome
     env: node
     plan: free
     buildCommand: npm install
