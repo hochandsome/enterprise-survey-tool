@@ -79,9 +79,46 @@
         margin-top: 0;
       }
 
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin: 10px 0 16px;
+      }
+
+      .tab-btn {
+        width: auto;
+        padding: 10px 16px;
+        border-radius: 999px;
+        background: linear-gradient(180deg, #f9fbff, #ebf2ff);
+        color: #0e3a79;
+        border: 1px solid var(--line);
+        box-shadow: none;
+      }
+
+      .tab-btn.active {
+        background: linear-gradient(130deg, var(--brand), var(--brand-2));
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 8px 16px rgba(15, 123, 255, 0.2);
+      }
+
+      .tab-panel {
+        display: none;
+      }
+
+      .tab-panel.active {
+        display: block;
+      }
+
       .grid {
         display: grid;
         grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+        gap: 16px;
+      }
+
+      .single-col {
+        display: grid;
+        grid-template-columns: 1fr;
         gap: 16px;
       }
 
@@ -335,8 +372,15 @@
       </div>
       <p class="sub">Tạo template, tạo cuộc khảo sát cho doanh nghiệp, gửi mail và theo dõi realtime dashboard.</p>
 
-      <div class="grid">
-        <section class="card template-card">
+      <div class="tabs">
+        <button type="button" class="tab-btn active" data-tab="template">Template</button>
+        <button type="button" class="tab-btn" data-tab="survey">Cuộc khảo sát</button>
+        <button type="button" class="tab-btn" data-tab="report">Báo cáo</button>
+      </div>
+
+      <section id="tab-template" class="tab-panel active">
+        <div class="single-col">
+          <section class="card template-card">
           <h2>1) Tạo Template</h2>
           <label>Template đã tạo
             <select id="templateEditorSelect"></select>
@@ -411,9 +455,13 @@
           <div id="templateQuestionList"></div>
           <div id="templateSectionBoard" class="section-grid"></div>
           <button id="saveTemplateBtn" style="margin-top: 12px;">Lưu template</button>
-        </section>
+          </section>
+        </div>
+      </section>
 
-        <section class="card">
+      <section id="tab-survey" class="tab-panel">
+        <div class="single-col">
+          <section class="card">
           <h2>2) Tạo Cuộc Khảo Sát / Chỉnh Sửa Tiếp</h2>
           <label>Doanh nghiệp <input id="companyName" placeholder="ACME Vietnam" /></label>
           <label>Tên cuộc khảo sát <input id="surveyName" placeholder="Khảo sát hài lòng tháng 04" /></label>
@@ -426,42 +474,47 @@
           <button id="createSurveyBtn">Tạo survey từ template</button>
 
           <div id="setupArea" style="display:none; margin-top: 12px;"></div>
-        </section>
-      </div>
+          </section>
 
-      <section class="card" style="margin-top:16px;">
-        <h2>3) Danh Sách Cuộc Khảo Sát</h2>
-        <p class="hint">Bấm vào từng cuộc khảo sát để tiếp tục chỉnh nội dung, thêm email nhân sự và theo dõi tiến độ gửi/hoàn thành.</p>
-        <div class="row">
-          <label>Lọc trạng thái
-            <select id="surveyStatusFilter">
-              <option value="all">Tất cả</option>
-              <option value="draft">Nháp</option>
-              <option value="active">Đang diễn ra</option>
-              <option value="completed">Hoàn thành</option>
-              <option value="expired">Đã hết hạn</option>
-            </select>
-          </label>
+          <section class="card">
+            <h2>3) Danh Sách Cuộc Khảo Sát</h2>
+            <p class="hint">Bấm vào từng cuộc khảo sát để tiếp tục chỉnh nội dung, thêm email nhân sự và theo dõi tiến độ gửi/hoàn thành.</p>
+            <div class="row">
+              <label>Lọc trạng thái
+                <select id="surveyStatusFilter">
+                  <option value="all">Tất cả</option>
+                  <option value="draft">Nháp</option>
+                  <option value="active">Đang diễn ra</option>
+                  <option value="completed">Hoàn thành</option>
+                  <option value="expired">Đã hết hạn</option>
+                </select>
+              </label>
+            </div>
+            <div id="surveyListArea"></div>
+          </section>
         </div>
-        <div id="surveyListArea"></div>
       </section>
 
-      <section class="card" style="margin-top:16px;">
-        <h2>4) Dashboard Kết Quả Khảo Sát</h2>
-        <div id="systemStatus" class="hint">Đang kiểm tra hệ thống...</div>
-        <div class="row">
-          <label>Email test SMTP
-            <input id="smtpTestEmail" placeholder="you@company.com" />
-          </label>
-          <div style="display:flex; align-items:flex-end;">
-            <button id="testSmtpBtn" class="secondary">Gửi email test</button>
-          </div>
+      <section id="tab-report" class="tab-panel">
+        <div class="single-col">
+          <section class="card">
+            <h2>4) Dashboard Kết Quả Khảo Sát</h2>
+            <div id="systemStatus" class="hint">Đang kiểm tra hệ thống...</div>
+            <div class="row">
+              <label>Email test SMTP
+                <input id="smtpTestEmail" placeholder="you@company.com" />
+              </label>
+              <div style="display:flex; align-items:flex-end;">
+                <button id="testSmtpBtn" class="secondary">Gửi email test</button>
+              </div>
+            </div>
+            <label>Chọn survey
+              <select id="surveyDashboardSelect"></select>
+            </label>
+            <button id="refreshDashboardBtn" class="secondary">Refresh</button>
+            <div id="dashboardArea" style="margin-top:12px;"></div>
+          </section>
         </div>
-        <label>Chọn survey
-          <select id="surveyDashboardSelect"></select>
-        </label>
-        <button id="refreshDashboardBtn" class="secondary">Refresh</button>
-        <div id="dashboardArea" style="margin-top:12px;"></div>
       </section>
     </div>
 
@@ -502,6 +555,15 @@
           .replaceAll(">", "&gt;")
           .replaceAll('"', "&quot;")
           .replaceAll("'", "&#039;");
+      }
+
+      function switchTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach((btn) => {
+          btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+        document.querySelectorAll('.tab-panel').forEach((panel) => {
+          panel.classList.toggle('active', panel.id === `tab-${tabName}`);
+        });
       }
 
       function ensureSection(sectionName) {
@@ -891,8 +953,10 @@
       document.getElementById('surveyListArea').addEventListener('click', async (e) => {
         const surveyId = Number(e.target?.dataset?.openSurvey);
         if (surveyId) {
+          switchTab('survey');
           await openSurveySetup(surveyId);
           document.getElementById('surveyDashboardSelect').value = String(surveyId);
+          switchTab('report');
           await refreshDashboard();
           window.scrollTo({ top: 0, behavior: 'smooth' });
           return;
@@ -1444,6 +1508,9 @@
 
       document.getElementById('refreshDashboardBtn').onclick = refreshDashboard;
       document.getElementById('surveyStatusFilter').onchange = renderSurveyList;
+      document.querySelectorAll('.tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+      });
       document.getElementById('logoutBtn').onclick = async () => {
         await nativeFetch('/api/auth/logout', { method: 'POST' });
         location.href = '/login';

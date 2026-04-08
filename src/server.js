@@ -399,7 +399,7 @@ app.get("/api/surveys", (_req, res) => {
 });
 
 app.post("/api/surveys", (req, res) => {
-  const { companyName, templateId, surveyName, deadlineAt } = req.body || {};
+  const { companyName, templateId, surveyName, deadlineAt, emailSubject, emailContent } = req.body || {};
   if (!companyName || !templateId || !surveyName) {
     return res.status(400).json({ error: "Thiếu companyName/templateId/surveyName" });
   }
@@ -432,6 +432,8 @@ app.post("/api/surveys", (req, res) => {
     firstSentAt: null,
     expiresAt: null,
     createdAt: now(),
+    emailSubject: emailSubject || "Khảo sát nhân sự",
+    emailContent: emailContent || "Xin chào {{name}},\nBạn được mời tham gia khảo sát. Link: {{link}}",
   });
 
   const templateQuestions = data.templateQuestions
@@ -448,6 +450,7 @@ app.post("/api/surveys", (req, res) => {
       options: Array.isArray(q.options) ? q.options : [],
       section: String(q.section || "Phần mặc định").trim() || "Phần mặc định",
       group: String(q.group || "Nhóm mặc định").trim() || "Nhóm mặc định",
+      groupGuide: q.groupGuide || "",
       condition: normalizeCondition(q.condition),
       sortOrder: index,
     });
@@ -466,27 +469,31 @@ app.get("/api/surveys/:id/setup", (req, res) => {
     return res.status(404).json({ error: "Không tìm thấy survey" });
   }
 
-  const company = data.companies.find((c) => c.id === survey.companyId);
-  const questions = data.surveyQuestions
-    .filter((q) => q.surveyId === surveyId)
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
-  const recipients = data.recipients
-    .filter((r) => r.surveyId === surveyId)
-    .sort((a, b) => b.id - a.id)
-    .map((r) => ({
-      id: r.id,
-      email: r.email,
-      status: r.status,
-      last_sent_at: r.lastSentAt || null,
-      reminder_count: r.reminderCount || 0,
-      is_new: !r.lastSentAt,
-    }));
+    const company = data.companies.find((c) => c.id === survey.companyId);
+    const questions = data.surveyQuestions
+      .filter((q) => q.surveyId === surveyId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id)
+      .map((q) => ({
+        ...q,
+        groupGuide: q.groupGuide || ""
+      }));
+    const recipients = data.recipients
+      .filter((r) => r.surveyId === surveyId)
+      .sort((a, b) => b.id - a.id)
+      .map((r) => ({
+        id: r.id,
+        email: r.email,
+        status: r.status,
+        last_sent_at: r.lastSentAt || null,
+        reminder_count: r.reminderCount || 0,
+        is_new: !r.lastSentAt,
+      }));
 
-  res.json({
-    survey: { ...survey, company_name: company?.name || "" },
-    questions,
-    recipients,
-  });
+    res.json({
+      survey: { ...survey, company_name: company?.name || "" },
+      questions,
+      recipients,
+    });
 });
 
 app.put("/api/surveys/:id/setup", (req, res) => {
@@ -511,6 +518,7 @@ app.put("/api/surveys/:id/setup", (req, res) => {
         options: Array.isArray(q.options) ? q.options : [],
         section: String(q.section || "Phần mặc định").trim() || "Phần mặc định",
         group: String(q.group || "Nhóm mặc định").trim() || "Nhóm mặc định",
+        groupGuide: q.groupGuide || "",
         condition: normalizeCondition(q.condition),
         sortOrder: index,
       });
@@ -541,7 +549,7 @@ app.put("/api/surveys/:id/setup", (req, res) => {
 
 app.put("/api/surveys/:id/meta", (req, res) => {
   const surveyId = Number(req.params.id);
-  const { name, companyName, status } = req.body || {};
+  const { name, companyName, status, emailSubject, emailContent } = req.body || {};
   const data = readDb();
   const survey = data.surveys.find((s) => s.id === surveyId);
   if (!survey) return res.status(404).json({ error: "Không tìm thấy survey" });
@@ -549,7 +557,6 @@ app.put("/api/surveys/:id/meta", (req, res) => {
   if (name) {
     survey.name = String(name).trim();
   }
-
   if (companyName) {
     let company = data.companies.find(
       (c) => c.name.toLowerCase() === String(companyName).trim().toLowerCase()
@@ -564,9 +571,14 @@ app.put("/api/surveys/:id/meta", (req, res) => {
     }
     survey.companyId = company.id;
   }
-
   if (status === "draft" || status === "active" || status === "completed") {
     survey.status = status;
+  }
+  if (typeof emailSubject === "string") {
+    survey.emailSubject = emailSubject;
+  }
+  if (typeof emailContent === "string") {
+    survey.emailContent = emailContent;
   }
 
   writeDb(data);
