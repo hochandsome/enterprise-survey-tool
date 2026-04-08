@@ -10,7 +10,7 @@ const { sendSurveyEmail, isSmtpEnabled, verifySmtp } = require("./mailer");
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
-const baseUrl = process.env.BASE_URL || `http://localhost:${port}`;
+const baseUrl = process.env.BASE_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`;
 const reminderAfterDays = Number(process.env.REMINDER_AFTER_DAYS || 3);
 
 app.use(cors());

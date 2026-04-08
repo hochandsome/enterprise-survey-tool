@@ -5,9 +5,12 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: npm start
+    healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
         value: 22
+      - key: NODE_ENV
+        value: production
       - key: DB_PROVIDER
         value: postgres
       - key: DATABASE_URL
