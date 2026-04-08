@@ -52,6 +52,26 @@
         gap: 12px;
       }
 
+      .brand-wrap {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .brand-logo-box {
+        width: 160px;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 8px;
+        box-shadow: 0 8px 22px rgba(16, 24, 40, 0.14);
+      }
+
+      .brand-logo-box img {
+        width: 100%;
+        display: block;
+      }
+
       .sub {
         color: var(--muted);
         margin-top: 0;
@@ -189,6 +209,36 @@
         background: rgba(252, 255, 255, 0.8);
       }
 
+      .section-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .section-col {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        background: rgba(255,255,255,0.65);
+      }
+
+      .section-col h4 {
+        margin: 0;
+      }
+
+      .section-drop {
+        min-height: 70px;
+        margin-top: 8px;
+        padding: 8px;
+        border: 1px dashed #7ea2ff;
+        border-radius: 10px;
+      }
+
+      .draggable {
+        cursor: grab;
+      }
+
       .pill {
         display: inline-block;
         font-size: 12px;
@@ -219,13 +269,19 @@
         .grid { grid-template-columns: 1fr; }
         .kpi-grid { grid-template-columns: 1fr 1fr; }
         .charts { grid-template-columns: 1fr; }
+        .section-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
   <body>
     <div class="wrap">
       <div class="topbar">
-        <h1 class="title">Survey Admin Console</h1>
+        <div class="brand-wrap">
+          <div class="brand-logo-box">
+            <img src="/assets/joywork-logo.svg" alt="JOYWORK" />
+          </div>
+          <h1 class="title">Survey Admin Console</h1>
+        </div>
         <button class="secondary logout-btn" id="logoutBtn">Đăng xuất</button>
       </div>
       <p class="sub">Tạo template, tạo cuộc khảo sát cho doanh nghiệp, gửi mail và theo dõi realtime dashboard.</p>
@@ -233,8 +289,24 @@
       <div class="grid">
         <section class="card">
           <h2>1) Tạo Template</h2>
+          <label>Template đã tạo
+            <select id="templateEditorSelect"></select>
+          </label>
+          <div class="row">
+            <button class="secondary" id="loadTemplateForEditBtn">Nạp để sửa</button>
+            <button class="secondary" id="newTemplateBtn">Template mới</button>
+          </div>
           <label>Tên template <input id="templateName" placeholder="Khảo sát hài lòng Q2" /></label>
           <label>Mô tả <textarea id="templateDesc" rows="2" placeholder="Dùng cho khảo sát nhân sự"></textarea></label>
+
+          <div class="row">
+            <label>Tạo phần mới
+              <input id="newSectionName" placeholder="Phần 1: Thông tin chung" />
+            </label>
+            <div style="display:flex; align-items:flex-end;">
+              <button class="secondary" id="addSectionBtn">Thêm phần</button>
+            </div>
+          </div>
 
           <div class="question-item">
             <span class="pill">Thêm câu hỏi</span>
@@ -243,9 +315,13 @@
               <label>Loại
                 <select id="qType">
                   <option value="scale">Mức độ 1-5</option>
+                  <option value="single_choice">Chọn 1 đáp án</option>
                   <option value="multiple_choice">Multiple Choice</option>
                   <option value="short_text">Text ngắn</option>
                 </select>
+              </label>
+              <label>Phần
+                <select id="qSection"></select>
               </label>
               <label>Required
                 <select id="qRequired">
@@ -261,11 +337,12 @@
           </div>
 
           <div id="templateQuestionList"></div>
+          <div id="templateSectionBoard" class="section-grid"></div>
           <button id="saveTemplateBtn" style="margin-top: 12px;">Lưu template</button>
         </section>
 
         <section class="card">
-          <h2>2) Tạo Cuộc Khảo Sát</h2>
+          <h2>2) Tạo Cuộc Khảo Sát / Chỉnh Sửa Tiếp</h2>
           <label>Doanh nghiệp <input id="companyName" placeholder="ACME Vietnam" /></label>
           <label>Tên cuộc khảo sát <input id="surveyName" placeholder="Khảo sát hài lòng tháng 04" /></label>
           <label>Template
@@ -281,7 +358,13 @@
       </div>
 
       <section class="card" style="margin-top:16px;">
-        <h2>3) Dashboard Realtime</h2>
+        <h2>3) Danh Sách Cuộc Khảo Sát</h2>
+        <p class="hint">Bấm vào từng cuộc khảo sát để tiếp tục chỉnh nội dung, thêm email nhân sự và theo dõi tiến độ gửi/hoàn thành.</p>
+        <div id="surveyListArea"></div>
+      </section>
+
+      <section class="card" style="margin-top:16px;">
+        <h2>4) Dashboard Kết Quả Khảo Sát</h2>
         <div id="systemStatus" class="hint">Đang kiểm tra hệ thống...</div>
         <div class="row">
           <label>Email test SMTP
@@ -304,9 +387,12 @@
     <script>
       const state = {
         templateQuestions: [],
+        templateSections: ["Phần mặc định"],
         templates: [],
         surveys: [],
         currentSurveyId: null,
+        editingTemplateId: null,
+        draggedQuestionIndex: null,
         charts: {
           status: null,
           scale: null,
@@ -334,11 +420,136 @@
 
       function questionToEditorRow(q, idx) {
         return `
-          <div class="question-item">
-            <b>Câu ${idx + 1}:</b> ${escapeHtml(q.title)}
-            <div style="font-size:12px; color:#48606b;">${q.type} | required: ${q.required ? "yes" : "no"}</div>
+          <div class="question-item draggable" draggable="true" data-drag-idx="${idx}">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+              <b>Câu ${idx + 1} <span class="hint">(${escapeHtml(q.section || 'Phần mặc định')})</span></b>
+              <button class="secondary" style="width:auto; margin:0; padding:6px 10px;" data-remove-idx="${idx}">Xóa</button>
+            </div>
+            <input data-field="title" data-idx="${idx}" value="${escapeHtml(q.title || '')}" placeholder="Tiêu đề câu hỏi" />
+            <div class="row">
+              <select data-field="type" data-idx="${idx}">
+                <option value="scale" ${q.type === 'scale' ? 'selected' : ''}>Mức độ 1-5</option>
+                <option value="single_choice" ${q.type === 'single_choice' ? 'selected' : ''}>Chọn 1 đáp án</option>
+                <option value="multiple_choice" ${q.type === 'multiple_choice' ? 'selected' : ''}>Multiple Choice</option>
+                <option value="short_text" ${q.type === 'short_text' ? 'selected' : ''}>Text ngắn</option>
+              </select>
+              <select data-field="required" data-idx="${idx}">
+                <option value="1" ${q.required ? 'selected' : ''}>Required</option>
+                <option value="0" ${!q.required ? 'selected' : ''}>Optional</option>
+              </select>
+            </div>
+            <label>Phần
+              <select data-field="section" data-idx="${idx}">${renderSectionOptions(q.section || 'Phần mặc định')}</select>
+            </label>
+            <textarea data-field="options" data-idx="${idx}" rows="2" placeholder="Options cho single/multiple choice">${escapeHtml((q.options || []).join('\n'))}</textarea>
           </div>
         `;
+      }
+
+      function normalizeSectionsFromQuestions() {
+        const names = Array.from(new Set(state.templateQuestions.map(q => String(q.section || '').trim()).filter(Boolean)));
+        if (!names.includes('Phần mặc định')) names.unshift('Phần mặc định');
+        state.templateSections = names.length ? names : ['Phần mặc định'];
+      }
+
+      function renderSectionOptions(selected) {
+        return state.templateSections
+          .map(name => `<option value="${escapeHtml(name)}" ${name === selected ? 'selected' : ''}>${escapeHtml(name)}</option>`)
+          .join('');
+      }
+
+      function renderSectionDropdown() {
+        const select = document.getElementById('qSection');
+        select.innerHTML = renderSectionOptions(state.templateSections[0] || 'Phần mặc định');
+      }
+
+      function moveQuestionToSection(index, sectionName) {
+        if (!state.templateQuestions[index]) return;
+        state.templateQuestions[index].section = sectionName;
+        renderTemplateQuestions();
+      }
+
+      function renderSectionBoard() {
+        const board = document.getElementById('templateSectionBoard');
+        board.innerHTML = state.templateSections.map((section) => {
+          const rows = state.templateQuestions
+            .map((q, idx) => ({ ...q, idx }))
+            .filter((q) => (q.section || 'Phần mặc định') === section)
+            .map((q) => `<div class="question-item" style="margin:6px 0; padding:8px;"><b>#${q.idx + 1}</b> ${escapeHtml(q.title || '(chưa có tiêu đề)')}</div>`)
+            .join('');
+
+          return `
+            <div class="section-col">
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                <h4>${escapeHtml(section)}</h4>
+                ${section === 'Phần mặc định' ? '' : `<button class="secondary" style="width:auto; margin:0; padding:6px 10px;" data-remove-section="${escapeHtml(section)}">Xóa phần</button>`}
+              </div>
+              <div class="section-drop" data-drop-section="${escapeHtml(section)}">
+                ${rows || '<div class="hint">Kéo câu hỏi vào đây</div>'}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function getSurveyUiStatus(s) {
+        const deadline = s.deadlineAt ? new Date(s.deadlineAt).getTime() : null;
+        if (deadline && deadline < Date.now()) return 'Đã hết hạn';
+        if (s.status === 'draft') return 'Nháp';
+        if (s.status === 'active') return 'Đang chạy';
+        return s.status || 'Không rõ';
+      }
+
+      function renderSurveyList() {
+        const root = document.getElementById('surveyListArea');
+        if (!state.surveys.length) {
+          root.innerHTML = '<div class="hint">Chưa có cuộc khảo sát nào.</div>';
+          return;
+        }
+
+        const rows = state.surveys.map((s) => `
+          <tr>
+            <td>${escapeHtml(s.name)}</td>
+            <td>${escapeHtml(s.company_name || '-')}</td>
+            <td>${escapeHtml(getSurveyUiStatus(s))}</td>
+            <td>${s.deadlineAt ? escapeHtml(new Date(s.deadlineAt).toLocaleString()) : '-'}</td>
+            <td>${s.total_recipients || 0}</td>
+            <td>${s.completed_recipients || 0}</td>
+            <td><button class="secondary" style="width:auto; margin:0; padding:6px 10px;" data-open-survey="${s.id}">Mở quản lý</button></td>
+          </tr>
+        `).join('');
+
+        root.innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>Tên khảo sát</th>
+                <th>Doanh nghiệp</th>
+                <th>Tình trạng</th>
+                <th>Hạn chót</th>
+                <th>Tổng gửi</th>
+                <th>Hoàn thành</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      }
+
+      function setTemplateMode(editingId) {
+        state.editingTemplateId = editingId;
+        const btn = document.getElementById('saveTemplateBtn');
+        btn.textContent = editingId ? 'Cập nhật template' : 'Lưu template';
+      }
+
+      function resetTemplateEditor() {
+        setTemplateMode(null);
+        state.templateQuestions = [];
+        state.templateSections = ['Phần mặc định'];
+        document.getElementById('templateName').value = '';
+        document.getElementById('templateDesc').value = '';
+        renderTemplateQuestions();
       }
 
       async function loadTemplates() {
@@ -347,11 +558,17 @@
 
         const select = document.getElementById('templateSelect');
         select.innerHTML = data.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+
+        const editorSelect = document.getElementById('templateEditorSelect');
+        editorSelect.innerHTML = data.length
+          ? data.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('')
+          : '<option value="">Chưa có template</option>';
       }
 
       async function loadSurveys() {
         const data = await (await fetch('/api/surveys')).json();
         state.surveys = data;
+        renderSurveyList();
 
         const dd = document.getElementById('surveyDashboardSelect');
         dd.innerHTML = data.map(s => `<option value="${s.id}">${escapeHtml(s.name)} - ${escapeHtml(s.company_name)}</option>`).join('');
@@ -359,11 +576,133 @@
 
       function renderTemplateQuestions() {
         document.getElementById('templateQuestionList').innerHTML = state.templateQuestions.map(questionToEditorRow).join('');
+        renderSectionDropdown();
+        renderSectionBoard();
       }
+
+      document.getElementById('templateQuestionList').addEventListener('click', (e) => {
+        const idx = Number(e.target?.dataset?.removeIdx);
+        if (!Number.isNaN(idx)) {
+          state.templateQuestions.splice(idx, 1);
+          normalizeSectionsFromQuestions();
+          renderTemplateQuestions();
+        }
+      });
+
+      document.getElementById('templateSectionBoard').addEventListener('click', (e) => {
+        const section = e.target?.dataset?.removeSection;
+        if (!section) return;
+        state.templateSections = state.templateSections.filter(s => s !== section);
+        state.templateQuestions = state.templateQuestions.map(q => ({ ...q, section: q.section === section ? 'Phần mặc định' : q.section }));
+        normalizeSectionsFromQuestions();
+        renderTemplateQuestions();
+      });
+
+      document.getElementById('templateQuestionList').addEventListener('dragstart', (e) => {
+        const idx = Number(e.target?.dataset?.dragIdx);
+        if (Number.isNaN(idx)) return;
+        state.draggedQuestionIndex = idx;
+      });
+
+      document.getElementById('templateSectionBoard').addEventListener('dragover', (e) => {
+        if (e.target?.closest('[data-drop-section]')) e.preventDefault();
+      });
+
+      document.getElementById('templateSectionBoard').addEventListener('drop', (e) => {
+        const dropEl = e.target?.closest('[data-drop-section]');
+        if (!dropEl) return;
+        e.preventDefault();
+        const section = dropEl.dataset.dropSection;
+        const idx = state.draggedQuestionIndex;
+        if (idx === null || section === undefined) return;
+        moveQuestionToSection(idx, section);
+        state.draggedQuestionIndex = null;
+      });
+
+      document.getElementById('surveyListArea').addEventListener('click', async (e) => {
+        const surveyId = Number(e.target?.dataset?.openSurvey);
+        if (!surveyId) return;
+        await openSurveySetup(surveyId);
+        document.getElementById('surveyDashboardSelect').value = String(surveyId);
+        await refreshDashboard();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      document.getElementById('templateQuestionList').addEventListener('input', (e) => {
+        const idx = Number(e.target?.dataset?.idx);
+        const field = e.target?.dataset?.field;
+        if (Number.isNaN(idx) || !field || !state.templateQuestions[idx]) return;
+
+        if (field === 'title') {
+          state.templateQuestions[idx].title = e.target.value;
+        }
+
+        if (field === 'options') {
+          state.templateQuestions[idx].options = e.target.value.split('\n').map(v => v.trim()).filter(Boolean);
+        }
+      });
+
+      document.getElementById('templateQuestionList').addEventListener('change', (e) => {
+        const idx = Number(e.target?.dataset?.idx);
+        const field = e.target?.dataset?.field;
+        if (Number.isNaN(idx) || !field || !state.templateQuestions[idx]) return;
+
+        if (field === 'type') {
+          state.templateQuestions[idx].type = e.target.value;
+        }
+
+        if (field === 'required') {
+          state.templateQuestions[idx].required = e.target.value === '1';
+        }
+
+        if (field === 'section') {
+          state.templateQuestions[idx].section = e.target.value;
+        }
+      });
+
+      document.getElementById('loadTemplateForEditBtn').onclick = () => {
+        const selectedId = Number(document.getElementById('templateEditorSelect').value);
+        const tpl = state.templates.find(t => t.id === selectedId);
+        if (!tpl) {
+          alert('Không tìm thấy template');
+          return;
+        }
+
+        setTemplateMode(tpl.id);
+        document.getElementById('templateName').value = tpl.name || '';
+        document.getElementById('templateDesc').value = tpl.description || '';
+        state.templateQuestions = (tpl.questions || []).map(q => ({
+          title: q.title,
+          type: q.type,
+          required: !!q.required,
+          section: q.section || 'Phần mặc định',
+          options: Array.isArray(q.options) ? q.options : [],
+        }));
+        normalizeSectionsFromQuestions();
+        renderTemplateQuestions();
+      };
+
+      document.getElementById('newTemplateBtn').onclick = resetTemplateEditor;
+
+      document.getElementById('addSectionBtn').onclick = () => {
+        const name = document.getElementById('newSectionName').value.trim();
+        if (!name) {
+          alert('Nhập tên phần');
+          return;
+        }
+        if (state.templateSections.includes(name)) {
+          alert('Phần này đã tồn tại');
+          return;
+        }
+        state.templateSections.push(name);
+        document.getElementById('newSectionName').value = '';
+        renderTemplateQuestions();
+      };
 
       document.getElementById('addQuestionBtn').onclick = () => {
         const title = document.getElementById('qTitle').value.trim();
         const type = document.getElementById('qType').value;
+        const section = document.getElementById('qSection').value || 'Phần mặc định';
         const required = document.getElementById('qRequired').value === '1';
         const options = document.getElementById('qOptions').value.split('\n').map(v => v.trim()).filter(Boolean);
 
@@ -372,7 +711,7 @@
           return;
         }
 
-        state.templateQuestions.push({ title, type, required, options });
+        state.templateQuestions.push({ title, type, section, required, options });
         renderTemplateQuestions();
 
         document.getElementById('qTitle').value = '';
@@ -388,10 +727,32 @@
           return;
         }
 
-        const res = await fetch('/api/templates', {
-          method: 'POST',
+        const invalidQuestion = state.templateQuestions.find(q => !String(q.title || '').trim());
+        if (invalidQuestion) {
+          alert('Mỗi câu hỏi cần có tiêu đề');
+          return;
+        }
+
+        const payload = {
+          name,
+          description,
+          questions: state.templateQuestions.map(q => ({
+            title: String(q.title || '').trim(),
+            type: q.type,
+            section: String(q.section || 'Phần mặc định').trim() || 'Phần mặc định',
+            required: !!q.required,
+            options: Array.isArray(q.options) ? q.options : [],
+          })),
+        };
+
+        const isEditing = !!state.editingTemplateId;
+        const url = isEditing ? `/api/templates/${state.editingTemplateId}` : '/api/templates';
+        const method = isEditing ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+          method,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, description, questions: state.templateQuestions })
+          body: JSON.stringify(payload)
         });
 
         if (!res.ok) {
@@ -399,11 +760,8 @@
           return;
         }
 
-        alert('Đã lưu template');
-        state.templateQuestions = [];
-        renderTemplateQuestions();
-        document.getElementById('templateName').value = '';
-        document.getElementById('templateDesc').value = '';
+        alert(isEditing ? 'Đã cập nhật template' : 'Đã lưu template');
+        resetTemplateEditor();
         await loadTemplates();
       };
 
@@ -437,6 +795,7 @@
 
       async function openSurveySetup(surveyId) {
         const data = await (await fetch(`/api/surveys/${surveyId}/setup`)).json();
+        const progress = await (await fetch(`/api/dashboard/${surveyId}`)).json();
 
         const qHtml = data.questions.map((q, idx) => {
           const options = (q.options || []).join('\n');
@@ -444,9 +803,11 @@
             <div class="question-item">
               <div><b>Câu ${idx + 1}</b></div>
               <input data-k="title" data-i="${idx}" value="${escapeHtml(q.title)}" />
+              <input data-k="section" data-i="${idx}" value="${escapeHtml(q.section || 'Phần mặc định')}" placeholder="Phần câu hỏi" />
               <div class="row">
                 <select data-k="type" data-i="${idx}">
                   <option value="scale" ${q.type === 'scale' ? 'selected' : ''}>Mức độ 1-5</option>
+                  <option value="single_choice" ${q.type === 'single_choice' ? 'selected' : ''}>Chọn 1 đáp án</option>
                   <option value="multiple_choice" ${q.type === 'multiple_choice' ? 'selected' : ''}>Multiple Choice</option>
                   <option value="short_text" ${q.type === 'short_text' ? 'selected' : ''}>Text ngắn</option>
                 </select>
@@ -460,18 +821,30 @@
           `;
         }).join('');
 
-        const recipientsSample = data.recipients.map(r => `${r.email} (${r.status})`).join('\n');
+        const recipientRows = progress.recipients
+          .map(r => `<tr><td>${escapeHtml(r.email)}</td><td>${escapeHtml(r.status)}</td><td>${r.reminder_count}</td><td>${r.last_sent_at || '-'}</td></tr>`)
+          .join('');
 
         const setupArea = document.getElementById('setupArea');
         setupArea.style.display = 'block';
         setupArea.innerHTML = `
           <p><b>${escapeHtml(data.survey.name)}</b> | ${escapeHtml(data.survey.company_name)}</p>
+          <div class="kpi-grid">
+            <div class="kpi"><div>Tổng gửi</div><b>${progress.metrics.total}</b></div>
+            <div class="kpi"><div>Đã hoàn thành</div><b>${progress.metrics.completed}</b></div>
+            <div class="kpi"><div>Đang làm dở</div><b>${progress.metrics.inProgress}</b></div>
+            <div class="kpi"><div>Tỉ lệ hoàn thành</div><b>${progress.metrics.completionRate}%</b></div>
+          </div>
           <h3>Chỉnh câu hỏi survey riêng</h3>
           ${qHtml}
           <h3>Danh sách email nhân sự</h3>
           <textarea id="emailsInput" rows="5" placeholder="mỗi dòng 1 email"></textarea>
           <p style="color:#48606b; font-size:12px;">Đã có: ${data.recipients.length} người nhận</p>
-          <textarea rows="4" readonly>${escapeHtml(recipientsSample)}</textarea>
+          <h3>Tiến độ gửi mail và hoàn thành theo nhân sự</h3>
+          <table>
+            <thead><tr><th>Email</th><th>Trạng thái</th><th>Nhắc</th><th>Lần gửi gần nhất</th></tr></thead>
+            <tbody>${recipientRows || '<tr><td colspan="4">Chưa có người nhận</td></tr>'}</tbody>
+          </table>
           <div class="row" style="margin-top:10px;">
             <button id="saveSetupBtn">Lưu setup</button>
             <button id="sendSurveyBtn" class="secondary">Gửi khảo sát</button>
@@ -481,12 +854,14 @@
         document.getElementById('saveSetupBtn').onclick = async () => {
           const parsedQuestions = [...setupArea.querySelectorAll('[data-k="title"]')].map((el, idx) => {
             const type = setupArea.querySelector(`[data-k="type"][data-i="${idx}"]`).value;
+            const section = setupArea.querySelector(`[data-k="section"][data-i="${idx}"]`).value.trim() || 'Phần mặc định';
             const required = setupArea.querySelector(`[data-k="required"][data-i="${idx}"]`).value === '1';
             const options = setupArea
               .querySelector(`[data-k="options"][data-i="${idx}"]`)
               .value.split('\n').map(v => v.trim()).filter(Boolean);
             return {
               title: el.value.trim(),
+              section,
               type,
               required,
               options,
@@ -554,23 +929,15 @@
           .map(r => `<tr><td>${escapeHtml(r.title)}</td><td>${r.avg_score ? Number(r.avg_score).toFixed(2) : '-'}</td><td>${r.samples}</td></tr>`)
           .join('');
 
-        const recipients = data.recipients
-          .map(r => `<tr><td>${escapeHtml(r.email)}</td><td>${r.status}</td><td>${r.reminder_count}</td><td>${r.last_sent_at || '-'}</td></tr>`)
-          .join('');
-
         document.getElementById('dashboardArea').innerHTML = `
           <div class="kpi-grid">
-            <div class="kpi"><div>Tổng gửi</div><b>${metric.total}</b></div>
-            <div class="kpi"><div>Đã hoàn thành</div><b>${metric.completed}</b></div>
-            <div class="kpi"><div>Đang làm dở</div><b>${metric.inProgress}</b></div>
-            <div class="kpi"><div>Tỉ lệ hoàn thành</div><b>${metric.completionRate}%</b></div>
+            <div class="kpi"><div>Số phản hồi hợp lệ</div><b>${metric.completed}</b></div>
+            <div class="kpi"><div>Câu hỏi scale</div><b>${data.scaleAverages.length}</b></div>
+            <div class="kpi"><div>Điểm TB toàn khảo sát</div><b>${data.scaleAverages.length ? (data.scaleAverages.reduce((s, r) => s + (r.avg_score || 0), 0) / data.scaleAverages.length).toFixed(2) : '-'}</b></div>
+            <div class="kpi"><div>Mẫu lớn nhất/câu</div><b>${data.scaleAverages.length ? Math.max(...data.scaleAverages.map(v => v.samples || 0)) : 0}</b></div>
           </div>
 
           <div class="charts">
-            <div class="chart-card">
-              <h3>Trạng thái người nhận</h3>
-              <canvas id="statusChart" height="180"></canvas>
-            </div>
             <div class="chart-card">
               <h3>Điểm trung bình câu hỏi scale</h3>
               <canvas id="scaleChart" height="180"></canvas>
@@ -583,38 +950,16 @@
             <tbody>${scaleRows || '<tr><td colspan="3">Chưa có dữ liệu</td></tr>'}</tbody>
           </table>
 
-          <h3>Realtime trạng thái người nhận</h3>
-          <table>
-            <thead><tr><th>Email</th><th>Status</th><th>Remind</th><th>Last Sent</th></tr></thead>
-            <tbody>${recipients || '<tr><td colspan="4">Chưa có người nhận</td></tr>'}</tbody>
-          </table>
         `;
 
-        renderCharts(metric, data.scaleAverages);
+        renderCharts(data.scaleAverages);
       }
 
-      function renderCharts(metric, scaleAverages) {
-        const statusCtx = document.getElementById('statusChart');
+      function renderCharts(scaleAverages) {
         const scaleCtx = document.getElementById('scaleChart');
-        if (!statusCtx || !scaleCtx || !window.Chart) return;
+        if (!scaleCtx || !window.Chart) return;
 
-        if (state.charts.status) state.charts.status.destroy();
         if (state.charts.scale) state.charts.scale.destroy();
-
-        state.charts.status = new Chart(statusCtx, {
-          type: 'doughnut',
-          data: {
-            labels: ['Completed', 'In Progress', 'Sent', 'Pending'],
-            datasets: [{
-              data: [metric.completed, metric.inProgress, metric.sent, metric.pending],
-              backgroundColor: ['#06d6a0', '#ffb703', '#118ab2', '#8d99ae']
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: { legend: { position: 'bottom' } }
-          }
-        });
 
         state.charts.scale = new Chart(scaleCtx, {
           type: 'bar',

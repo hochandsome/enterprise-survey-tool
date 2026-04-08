@@ -249,12 +249,48 @@ app.post("/api/templates", (req, res) => {
       title: String(q.title || "").trim(),
       required: Boolean(q.required),
       options: Array.isArray(q.options) ? q.options : [],
+      section: String(q.section || "Phần mặc định").trim() || "Phần mặc định",
       sortOrder: index,
     });
   });
 
   writeDb(data);
   res.status(201).json({ id: templateId });
+});
+
+app.put("/api/templates/:id", (req, res) => {
+  const templateId = Number(req.params.id);
+  const { name, description, questions } = req.body || {};
+
+  if (!name || !Array.isArray(questions) || questions.length === 0) {
+    return res.status(400).json({ error: "Thiếu tên template hoặc câu hỏi" });
+  }
+
+  const data = readDb();
+  const template = data.templates.find((t) => t.id === templateId);
+  if (!template) {
+    return res.status(404).json({ error: "Không tìm thấy template" });
+  }
+
+  template.name = String(name).trim();
+  template.description = description ? String(description).trim() : "";
+
+  data.templateQuestions = data.templateQuestions.filter((q) => q.templateId !== templateId);
+  questions.forEach((q, index) => {
+    data.templateQuestions.push({
+      id: db.nextId(data, "templateQuestions"),
+      templateId,
+      type: q.type,
+      title: String(q.title || "").trim(),
+      required: Boolean(q.required),
+      options: Array.isArray(q.options) ? q.options : [],
+      section: String(q.section || "Phần mặc định").trim() || "Phần mặc định",
+      sortOrder: index,
+    });
+  });
+
+  writeDb(data);
+  res.json({ ok: true, id: templateId });
 });
 
 app.get("/api/surveys", (_req, res) => {
@@ -322,6 +358,7 @@ app.post("/api/surveys", (req, res) => {
       title: q.title,
       required: Boolean(q.required),
       options: Array.isArray(q.options) ? q.options : [],
+      section: String(q.section || "Phần mặc định").trim() || "Phần mặc định",
       sortOrder: index,
     });
   });
@@ -381,6 +418,7 @@ app.put("/api/surveys/:id/setup", (req, res) => {
         title: String(q.title || "").trim(),
         required: Boolean(q.required),
         options: Array.isArray(q.options) ? q.options : [],
+        section: String(q.section || "Phần mặc định").trim() || "Phần mặc định",
         sortOrder: index,
       });
     });
@@ -437,7 +475,18 @@ app.post("/api/surveys/:id/send", async (req, res) => {
       const mailResult = await sendSurveyEmail({
         to: r.email,
         subject: `[${company?.name || "Company"}] Mời bạn tham gia khảo sát hài lòng`,
-        html: `<p>Xin chào,</p><p>Vui lòng hoàn thành khảo sát tại: <a href="${link}">${link}</a></p>`,
+        html: `
+          <div style="font-family:Segoe UI,Arial,sans-serif;line-height:1.5;color:#1f2937;max-width:680px;margin:auto;">
+            <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:10px 14px;display:inline-block;margin-bottom:14px;">
+              <img src="${baseUrl}/assets/joywork-logo.svg" alt="JOYWORK" style="width:200px;display:block;" />
+            </div>
+            <h2 style="margin:0 0 10px;color:#0f172a;">Mời bạn tham gia khảo sát hài lòng nhân sự</h2>
+            <p>Đây là cuộc khảo sát nhằm đánh giá độ hài lòng của nhân sự về môi trường làm việc. Các kết quả khảo sát sẽ được bảo mật 100%, không ai có thể biết được đánh giá của bạn về công ty.</p>
+            <p>Vui lòng hoàn thành khảo sát tại liên kết sau:</p>
+            <p><a href="${link}" style="color:#0f7bff;font-weight:600;">${link}</a></p>
+            <p style="margin-top:18px;color:#6b7280;font-size:13px;">Cảm ơn bạn đã dành thời gian tham gia khảo sát.</p>
+          </div>
+        `,
       });
 
       if (mailResult?.mode === "dev") {
@@ -535,6 +584,7 @@ app.get("/api/respond/:token", (req, res) => {
       type: q.type,
       title: q.title,
       required: Boolean(q.required),
+      section: q.section || "Phần mặc định",
       options: Array.isArray(q.options) ? q.options : [],
     }));
 

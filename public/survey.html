@@ -230,7 +230,7 @@
           inputHtml = `<textarea id="textAnswer" placeholder="Nhập câu trả lời...">${answer ? esc(answer) : ''}</textarea>`;
         }
 
-        if (q.type === 'multiple_choice') {
+        if (q.type === 'multiple_choice' || q.type === 'single_choice') {
           inputHtml = (q.options || []).map(opt => {
             const active = answer === opt ? 'style="border-color:#0f7bff; background:linear-gradient(180deg, #edf5ff, #e3f8ff); box-shadow: 0 8px 18px rgba(15, 123, 255, 0.18);"' : '';
             return `<button class="choice" ${active} onclick="chooseOption('${esc(opt)}')">${esc(opt)}</button>`;
@@ -250,6 +250,7 @@
           <div class="hint">Bước ${state.index + 1}/${total} • Tiến độ ${progress}% • Tự động lưu bản nháp</div>
 
           <div class="question">
+            <div class="meta">${esc(q.section || 'Phần mặc định')}</div>
             <div class="question-title">${esc(q.title)} ${q.required ? '<span class="req">*</span>' : ''}</div>
             ${inputHtml}
           </div>
