@@ -12,9 +12,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: DB_PROVIDER
-        value: postgres
-      - key: DATABASE_URL
-        sync: false
+        value: json
       - key: BASE_URL
         sync: false
       - key: SMTP_HOST
