@@ -12,6 +12,7 @@ const app = express();
 const port = Number(process.env.PORT || 3000);
 const baseUrl = process.env.BASE_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`;
 const reminderAfterDays = Number(process.env.REMINDER_AFTER_DAYS || 3);
+const deployMarker = "auth-v1-force-redeploy";
 const adminUsername = process.env.ADMIN_USERNAME || "phungthaihoc";
 const adminPassword = process.env.ADMIN_PASSWORD || "123";
 const sessionSecret = process.env.SESSION_SECRET || "dev-session-secret-change-me";
@@ -723,7 +724,7 @@ async function start() {
   await db.init();
 
   app.listen(port, () => {
-    console.log(`Survey app running at ${baseUrl} (db=${db.provider})`);
+    console.log(`Survey app running at ${baseUrl} (db=${db.provider}, ${deployMarker})`);
   });
 }
 
