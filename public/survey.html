@@ -185,7 +185,9 @@
         survey: null,
         questions: [],
         answers: {},
-        index: 0,
+        page: 0,
+        started: false,
+        perPage: 4,
         autosaveTimer: null,
       };
 
@@ -198,13 +200,34 @@
           .replaceAll("'", '&#039;');
       }
 
-      function currentQuestion() {
-        return state.questions[state.index];
+      function getTotalPages() {
+        return Math.max(1, Math.ceil(getVisibleQuestions().length / state.perPage));
       }
 
-      function setAnswer(value) {
-        const q = currentQuestion();
-        state.answers[String(q.id)] = value;
+      function getPageQuestions() {
+        const visible = getVisibleQuestions();
+        const start = state.page * state.perPage;
+        return visible.slice(start, start + state.perPage);
+      }
+
+      function getVisibleQuestions() {
+        return state.questions.filter((q) => isQuestionVisible(q));
+      }
+
+      function isQuestionVisible(q) {
+        const condition = q.condition;
+        if (!condition || !condition.dependsOnTitle || !condition.equalsValue) return true;
+        const source = state.questions.find((x) => String(x.title || '').trim() === String(condition.dependsOnTitle || '').trim());
+        if (!source) return true;
+        const sourceAnswer = state.answers[String(source.id)];
+        if (Array.isArray(sourceAnswer)) {
+          return sourceAnswer.map((v) => String(v)).includes(String(condition.equalsValue));
+        }
+        return String(sourceAnswer || '') === String(condition.equalsValue);
+      }
+
+      function setAnswer(questionId, value) {
+        state.answers[String(questionId)] = value;
         scheduleAutosave();
       }
 
@@ -217,72 +240,104 @@
         `;
       }
 
-      function renderQuestion() {
-        const q = currentQuestion();
-        if (!q) return;
+      function renderIntro() {
+        document.getElementById('app').innerHTML = `
+          <div class="meta">${esc(state.survey.company_name)} | Ẩn danh 100%</div>
+          <h1>${esc(state.survey.name)}</h1>
+          <p>Đây là cuộc khảo sát nhằm đánh giá độ hài lòng của nhân sự về môi trường làm việc của Công Ty ${esc(state.survey.company_name)}. Các kết quả khảo sát sẽ được bảo mật 100%, không ai có thể biết được đánh giá của bạn về công ty.</p>
+          <p class="hint">Khảo sát hiển thị ${state.perPage} câu mỗi màn hình. Bạn có thể tạm dừng, lần mở lại sẽ tiếp tục tại vị trí cũ.</p>
+          <div class="actions">
+            <button class="primary" onclick="startSurvey()">Bắt đầu cuộc khảo sát</button>
+          </div>
+        `;
+      }
 
-        const total = state.questions.length;
-        const progress = Math.round(((state.index + 1) / total) * 100);
-        const answer = state.answers[String(q.id)];
-
+      function renderQuestionBlock(q, answer, index) {
         let inputHtml = '';
         if (q.type === 'short_text') {
-          inputHtml = `<textarea id="textAnswer" placeholder="Nhập câu trả lời...">${answer ? esc(answer) : ''}</textarea>`;
+          inputHtml = `<textarea id="textAnswer_${index}" placeholder="Nhập câu trả lời...">${answer ? esc(answer) : ''}</textarea>`;
         }
 
         if (q.type === 'multiple_choice' || q.type === 'single_choice') {
-          inputHtml = (q.options || []).map(opt => {
+          inputHtml = (q.options || []).map((opt) => {
             const active = answer === opt ? 'style="border-color:#0f7bff; background:linear-gradient(180deg, #edf5ff, #e3f8ff); box-shadow: 0 8px 18px rgba(15, 123, 255, 0.18);"' : '';
-            return `<button class="choice" ${active} onclick="chooseOption('${esc(opt)}')">${esc(opt)}</button>`;
+            return `<button class="choice" ${active} onclick="chooseOption('${q.id}','${esc(opt)}')">${esc(opt)}</button>`;
           }).join('');
         }
 
         if (q.type === 'scale') {
-          inputHtml = `<div class="scale">${[1,2,3,4,5].map(v => `
-            <button class="${answer === v ? 'active' : ''}" onclick="chooseScale(${v})">${v}</button>
+          inputHtml = `<div class="scale">${[1,2,3,4,5].map((v) => `
+            <button class="${answer === v ? 'active' : ''}" onclick="chooseScale('${q.id}',${v})">${v}</button>
           `).join('')}</div>`;
         }
 
-        document.getElementById('app').innerHTML = `
-          <div class="meta">${esc(state.survey.company_name)} | Thời gian làm dự kiến: 3-5 phút</div>
-          <h1>${esc(state.survey.name)}</h1>
-          <div class="progress"><div style="width:${progress}%;"></div></div>
-          <div class="hint">Bước ${state.index + 1}/${total} • Tiến độ ${progress}% • Tự động lưu bản nháp</div>
-
+        return `
           <div class="question">
-            <div class="meta">${esc(q.section || 'Phần mặc định')}</div>
+            <div class="meta">${esc(q.section || 'Phần mặc định')} | ${esc(q.group || 'Nhóm mặc định')}</div>
             <div class="question-title">${esc(q.title)} ${q.required ? '<span class="req">*</span>' : ''}</div>
             ${inputHtml}
           </div>
+        `;
+      }
 
+      function renderPage() {
+        const pageQuestions = getPageQuestions();
+        if (!pageQuestions.length) {
+          state.page = 0;
+        }
+        const totalPages = getTotalPages();
+        const visibleQuestions = getVisibleQuestions();
+        const currentMaxQuestion = Math.min((state.page + 1) * state.perPage, visibleQuestions.length);
+        const progress = Math.round((currentMaxQuestion / Math.max(1, visibleQuestions.length)) * 100);
+        const pageSection = pageQuestions[0]?.section || 'Phần mặc định';
+
+        const blocks = pageQuestions
+          .map((q, i) => renderQuestionBlock(q, state.answers[String(q.id)], i))
+          .join('');
+
+        document.getElementById('app').innerHTML = `
+          <div class="meta">${esc(state.survey.company_name)} | ${esc(pageSection)}</div>
+          <h1>${esc(state.survey.name)}</h1>
+          <div class="progress"><div style="width:${progress}%;"></div></div>
+          <div class="hint">Trang ${state.page + 1}/${totalPages} • Tiến độ ${progress}% • Tự động lưu bản nháp</div>
+          ${blocks}
           <div class="actions">
-            <button class="secondary" onclick="prevQuestion()" ${state.index === 0 ? 'disabled' : ''}>Quay lại</button>
-            <button class="primary" onclick="nextQuestion()">${state.index === total - 1 ? 'Gửi khảo sát' : 'Tiếp tục'}</button>
+            <button class="secondary" onclick="prevPage()" ${state.page === 0 ? 'disabled' : ''}>Quay lại</button>
+            <button class="primary" onclick="nextPage()">${state.page === totalPages - 1 ? 'Gửi khảo sát' : 'Tiếp tục'}</button>
           </div>
-          <div class="hint">Nếu bạn thoát trình duyệt, lần sau mở lại link mail sẽ tiếp tục tại đúng câu này.</div>
+          <div class="hint">Nếu bạn thoát trình duyệt, lần sau mở lại link mail sẽ tiếp tục tại đúng vị trí.</div>
         `;
 
-        if (q.type === 'short_text') {
-          const el = document.getElementById('textAnswer');
-          el.addEventListener('input', (e) => setAnswer(e.target.value));
-        }
+        pageQuestions.forEach((q, i) => {
+          if (q.type === 'short_text') {
+            const el = document.getElementById(`textAnswer_${i}`);
+            if (el) {
+              el.addEventListener('input', (e) => setAnswer(q.id, e.target.value));
+            }
+          }
+        });
       }
 
-      function chooseScale(v) {
-        setAnswer(v);
-        renderQuestion();
+      function chooseScale(questionId, value) {
+        setAnswer(questionId, value);
+        renderPage();
       }
 
-      function chooseOption(v) {
-        setAnswer(v);
-        renderQuestion();
+      function chooseOption(questionId, value) {
+        setAnswer(questionId, value);
+        renderPage();
       }
 
       async function saveDraft() {
+        const visible = getVisibleQuestions();
+        const firstVisible = visible[state.page * state.perPage];
+        const currentIndex = firstVisible
+          ? Math.max(0, state.questions.findIndex((q) => q.id === firstVisible.id))
+          : 0;
         await fetch(`/api/respond/${token}/draft`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ currentIndex: state.index, answers: state.answers })
+          body: JSON.stringify({ currentIndex, answers: state.answers }),
         });
       }
 
@@ -293,18 +348,29 @@
         }, 500);
       }
 
-      async function nextQuestion() {
-        const q = currentQuestion();
-        const answer = state.answers[String(q.id)];
-        if (q.required && (answer === undefined || answer === null || answer === '')) {
-          alert('Bạn cần trả lời câu hỏi bắt buộc');
-          return;
-        }
+      function validateCurrentPage() {
+        const pageQuestions = getPageQuestions();
+        const invalid = pageQuestions.find((q) => {
+          if (!q.required) return false;
+          const ans = state.answers[String(q.id)];
+          return ans === undefined || ans === null || ans === '';
+        });
 
-        if (state.index < state.questions.length - 1) {
-          state.index += 1;
+        if (invalid) {
+          alert(`Bạn cần trả lời câu bắt buộc: ${invalid.title}`);
+          return false;
+        }
+        return true;
+      }
+
+      async function nextPage() {
+        if (!validateCurrentPage()) return;
+
+        const totalPages = getTotalPages();
+        if (state.page < totalPages - 1) {
+          state.page += 1;
           await saveDraft();
-          renderQuestion();
+          renderPage();
           return;
         }
 
@@ -318,11 +384,16 @@
         renderDone();
       }
 
-      async function prevQuestion() {
-        if (state.index <= 0) return;
-        state.index -= 1;
+      async function prevPage() {
+        if (state.page <= 0) return;
+        state.page -= 1;
         await saveDraft();
-        renderQuestion();
+        renderPage();
+      }
+
+      function startSurvey() {
+        state.started = true;
+        renderPage();
       }
 
       async function boot() {
@@ -330,7 +401,7 @@
         const data = await res.json();
 
         if (!res.ok) {
-          document.getElementById('app').innerHTML = `<div class="done"><h1>Link không hợp lệ</h1></div>`;
+          document.getElementById('app').innerHTML = `<div class="done"><h1>${esc(data.error || 'Link không hợp lệ')}</h1></div>`;
           return;
         }
 
@@ -342,18 +413,33 @@
         state.survey = data.survey;
         state.questions = data.questions;
         state.answers = data.draft.answers || {};
-        state.index = data.draft.currentIndex || 0;
-        if (state.index >= state.questions.length) {
-          state.index = 0;
+        state.perPage = Math.min(5, Math.max(3, Number(data.survey.questions_per_page || 4)));
+
+        const savedIndex = Number(data.draft.currentIndex || 0);
+        const visible = getVisibleQuestions();
+        const visibleIndex = visible.findIndex((q) => {
+          const idx = state.questions.findIndex((x) => x.id === q.id);
+          return idx >= savedIndex;
+        });
+        const effectiveVisibleIndex = visibleIndex >= 0 ? visibleIndex : 0;
+        state.page = Math.floor(effectiveVisibleIndex / state.perPage);
+        if (state.page >= getTotalPages()) {
+          state.page = 0;
         }
 
-        renderQuestion();
+        if (savedIndex > 0) {
+          state.started = true;
+          renderPage();
+        } else {
+          renderIntro();
+        }
       }
 
+      window.startSurvey = startSurvey;
       window.chooseScale = chooseScale;
       window.chooseOption = chooseOption;
-      window.nextQuestion = nextQuestion;
-      window.prevQuestion = prevQuestion;
+      window.nextPage = nextPage;
+      window.prevPage = prevPage;
 
       boot();
     </script>

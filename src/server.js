@@ -4,6 +4,7 @@ const path = require("path");
 const crypto = require("crypto");
 const express = require("express");
 const cors = require("cors");
+const XLSX = require("xlsx");
 
 const db = require("./db");
 const { sendSurveyEmail, isSmtpEnabled, verifySmtp } = require("./mailer");
@@ -11,13 +12,17 @@ const { sendSurveyEmail, isSmtpEnabled, verifySmtp } = require("./mailer");
 const app = express();
 const port = Number(process.env.PORT || 3000);
 const baseUrl = process.env.BASE_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`;
-const reminderAfterDays = Number(process.env.REMINDER_AFTER_DAYS || 3);
+const reminderAfterHours = Number(process.env.REMINDER_AFTER_HOURS || 48);
+const surveyExpireDays = Number(process.env.SURVEY_EXPIRE_DAYS || 7);
 const deployMarker = "auth-v1-force-redeploy";
-const adminUsername = process.env.ADMIN_USERNAME || "phungthaihoc";
-const adminPassword = process.env.ADMIN_PASSWORD || "123";
+const adminUsername = process.env.ADMIN_USERNAME || "admin";
+const adminPassword = process.env.ADMIN_PASSWORD || "xzxz";
+const managerUsername = process.env.MANAGER_USERNAME || "manager";
+const managerPassword = process.env.MANAGER_PASSWORD || "123";
 const sessionSecret = process.env.SESSION_SECRET || "dev-session-secret-change-me";
 const sessionTtlMs = 1000 * 60 * 60 * 24;
 const sessions = new Map();
+const questionsPerPage = 4;
 
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
@@ -49,6 +54,58 @@ function parseEmails(raw) {
     }
   }
   return [...unique];
+}
+
+function parseEmailsFromExcelBase64(base64) {
+  try {
+    const workbook = XLSX.read(Buffer.from(base64, "base64"), { type: "buffer" });
+    const first = workbook.Sheets[workbook.SheetNames[0]];
+    if (!first) return [];
+
+    const rows = XLSX.utils.sheet_to_json(first, { header: 1, defval: "" });
+    const raw = [];
+    for (const row of rows) {
+      for (const cell of row) {
+        raw.push(String(cell || "").trim());
+      }
+    }
+    return parseEmails(raw);
+  } catch (_error) {
+    return [];
+  }
+}
+
+function getSurveyComputedStatus(survey) {
+  if (!survey) return "unknown";
+  if (survey.status === "completed") return "completed";
+  if (survey.expiresAt && new Date(survey.expiresAt).getTime() < Date.now()) return "expired";
+  if (survey.status === "active") return "active";
+  return "draft";
+}
+
+function normalizeCondition(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const dependsOnTitle = String(raw.dependsOnTitle || "").trim();
+  const equalsValue = String(raw.equalsValue || "").trim();
+  if (!dependsOnTitle || !equalsValue) return null;
+  return {
+    dependsOnTitle,
+    equalsValue,
+  };
+}
+
+function isQuestionVisible(question, questions, answers) {
+  const condition = normalizeCondition(question?.condition);
+  if (!condition) return true;
+
+  const source = questions.find((q) => String(q.title || "").trim() === condition.dependsOnTitle);
+  if (!source) return true;
+
+  const sourceAnswer = answers[String(source.id)];
+  if (Array.isArray(sourceAnswer)) {
+    return sourceAnswer.map((v) => String(v)).includes(condition.equalsValue);
+  }
+  return String(sourceAnswer || "") === condition.equalsValue;
 }
 
 function readDb() {
@@ -126,15 +183,19 @@ function getSessionUser(req) {
     sessions.delete(token);
     return null;
   }
-  return session.username;
+  return {
+    username: session.username,
+    role: session.role,
+  };
 }
 
 function requireAdminApi(req, res, next) {
-  const username = getSessionUser(req);
-  if (!username) {
+  const sessionUser = getSessionUser(req);
+  if (!sessionUser) {
     return res.status(401).json({ error: "Unauthorized" });
   }
-  req.adminUser = username;
+  req.adminUser = sessionUser.username;
+  req.adminRole = sessionUser.role;
   next();
 }
 
@@ -142,22 +203,39 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
+app.get("/", (req, res) => {
+  const sessionUser = getSessionUser(req);
+  if (sessionUser) {
+    return res.redirect("/admin");
+  }
+  return res.redirect("/login");
+});
+
 app.post("/api/auth/login", (req, res) => {
   const username = String(req.body?.username || "").trim();
   const password = String(req.body?.password || "").trim();
 
-  if (username !== adminUsername || password !== adminPassword) {
+  let role = null;
+  if (username === adminUsername && password === adminPassword) {
+    role = "admin";
+  }
+  if (username === managerUsername && password === managerPassword) {
+    role = "manager";
+  }
+
+  if (!role) {
     return res.status(401).json({ error: "Sai tài khoản hoặc mật khẩu" });
   }
 
   const token = randomToken();
   sessions.set(token, {
     username,
+    role,
     expiresAt: Date.now() + sessionTtlMs,
   });
   setSessionCookie(res, token);
 
-  res.json({ ok: true, username });
+  res.json({ ok: true, username, role });
 });
 
 app.post("/api/auth/logout", (req, res) => {
@@ -169,11 +247,11 @@ app.post("/api/auth/logout", (req, res) => {
 });
 
 app.get("/api/auth/me", (req, res) => {
-  const username = getSessionUser(req);
-  if (!username) {
+  const sessionUser = getSessionUser(req);
+  if (!sessionUser) {
     return res.status(401).json({ error: "Unauthorized" });
   }
-  res.json({ ok: true, username });
+  res.json({ ok: true, username: sessionUser.username, role: sessionUser.role });
 });
 
 app.use("/api", (req, res, next) => {
@@ -188,7 +266,8 @@ app.get("/api/system/status", async (_req, res) => {
     dbProvider: db.provider,
     smtpEnabled: isSmtpEnabled(),
     smtp,
-    reminderAfterDays,
+    reminderAfterHours,
+    surveyExpireDays,
   });
 });
 
@@ -250,6 +329,8 @@ app.post("/api/templates", (req, res) => {
       required: Boolean(q.required),
       options: Array.isArray(q.options) ? q.options : [],
       section: String(q.section || "Phần mặc định").trim() || "Phần mặc định",
+      group: String(q.group || "Nhóm mặc định").trim() || "Nhóm mặc định",
+      condition: normalizeCondition(q.condition),
       sortOrder: index,
     });
   });
@@ -285,6 +366,8 @@ app.put("/api/templates/:id", (req, res) => {
       required: Boolean(q.required),
       options: Array.isArray(q.options) ? q.options : [],
       section: String(q.section || "Phần mặc định").trim() || "Phần mặc định",
+      group: String(q.group || "Nhóm mặc định").trim() || "Nhóm mặc định",
+      condition: normalizeCondition(q.condition),
       sortOrder: index,
     });
   });
@@ -303,7 +386,10 @@ app.get("/api/surveys", (_req, res) => {
       const recipients = data.recipients.filter((r) => r.surveyId === s.id);
       return {
         ...s,
+        status: getSurveyComputedStatus(s),
         company_name: company?.name || "",
+        start_at: s.firstSentAt || null,
+        expires_at: s.expiresAt || null,
         total_recipients: recipients.length,
         completed_recipients: recipients.filter((r) => r.status === "completed").length,
       };
@@ -343,6 +429,8 @@ app.post("/api/surveys", (req, res) => {
     status: "draft",
     anonymous: true,
     deadlineAt: deadlineAt || null,
+    firstSentAt: null,
+    expiresAt: null,
     createdAt: now(),
   });
 
@@ -359,6 +447,8 @@ app.post("/api/surveys", (req, res) => {
       required: Boolean(q.required),
       options: Array.isArray(q.options) ? q.options : [],
       section: String(q.section || "Phần mặc định").trim() || "Phần mặc định",
+      group: String(q.group || "Nhóm mặc định").trim() || "Nhóm mặc định",
+      condition: normalizeCondition(q.condition),
       sortOrder: index,
     });
   });
@@ -389,6 +479,7 @@ app.get("/api/surveys/:id/setup", (req, res) => {
       status: r.status,
       last_sent_at: r.lastSentAt || null,
       reminder_count: r.reminderCount || 0,
+      is_new: !r.lastSentAt,
     }));
 
   res.json({
@@ -400,7 +491,7 @@ app.get("/api/surveys/:id/setup", (req, res) => {
 
 app.put("/api/surveys/:id/setup", (req, res) => {
   const surveyId = Number(req.params.id);
-  const { questions, emails } = req.body || {};
+  const { questions, emails, excelBase64 } = req.body || {};
 
   const data = readDb();
   const survey = data.surveys.find((s) => s.id === surveyId);
@@ -419,12 +510,15 @@ app.put("/api/surveys/:id/setup", (req, res) => {
         required: Boolean(q.required),
         options: Array.isArray(q.options) ? q.options : [],
         section: String(q.section || "Phần mặc định").trim() || "Phần mặc định",
+        group: String(q.group || "Nhóm mặc định").trim() || "Nhóm mặc định",
+        condition: normalizeCondition(q.condition),
         sortOrder: index,
       });
     });
   }
-
-  const parsedEmails = parseEmails(Array.isArray(emails) ? emails : []);
+  const textEmails = parseEmails(Array.isArray(emails) ? emails : []);
+  const excelEmails = excelBase64 ? parseEmailsFromExcelBase64(String(excelBase64)) : [];
+  const parsedEmails = [...new Set([...textEmails, ...excelEmails])];
   for (const email of parsedEmails) {
     const exists = data.recipients.some((r) => r.surveyId === surveyId && r.email === email);
     if (exists) continue;
@@ -445,6 +539,87 @@ app.put("/api/surveys/:id/setup", (req, res) => {
   res.json({ ok: true, imported: parsedEmails.length });
 });
 
+app.put("/api/surveys/:id/meta", (req, res) => {
+  const surveyId = Number(req.params.id);
+  const { name, companyName, status } = req.body || {};
+  const data = readDb();
+  const survey = data.surveys.find((s) => s.id === surveyId);
+  if (!survey) return res.status(404).json({ error: "Không tìm thấy survey" });
+
+  if (name) {
+    survey.name = String(name).trim();
+  }
+
+  if (companyName) {
+    let company = data.companies.find(
+      (c) => c.name.toLowerCase() === String(companyName).trim().toLowerCase()
+    );
+    if (!company) {
+      company = {
+        id: db.nextId(data, "companies"),
+        name: String(companyName).trim(),
+        createdAt: now(),
+      };
+      data.companies.push(company);
+    }
+    survey.companyId = company.id;
+  }
+
+  if (status === "draft" || status === "active" || status === "completed") {
+    survey.status = status;
+  }
+
+  writeDb(data);
+  res.json({ ok: true });
+});
+
+app.delete("/api/surveys/:id", (req, res) => {
+  if (req.adminRole !== "admin") {
+    return res.status(403).json({ error: "Manager không có quyền xóa khảo sát" });
+  }
+
+  const surveyId = Number(req.params.id);
+  const data = readDb();
+  const exists = data.surveys.some((s) => s.id === surveyId);
+  if (!exists) {
+    return res.status(404).json({ error: "Không tìm thấy survey" });
+  }
+
+  data.surveys = data.surveys.filter((s) => s.id !== surveyId);
+  data.surveyQuestions = data.surveyQuestions.filter((q) => q.surveyId !== surveyId);
+  const recipientIds = data.recipients.filter((r) => r.surveyId === surveyId).map((r) => r.id);
+  data.recipients = data.recipients.filter((r) => r.surveyId !== surveyId);
+  data.drafts = data.drafts.filter((d) => d.surveyId !== surveyId && !recipientIds.includes(d.recipientId));
+  const submissionIds = data.submissions.filter((s) => s.surveyId === surveyId).map((s) => s.id);
+  data.submissions = data.submissions.filter((s) => s.surveyId !== surveyId);
+  data.submissionAnswers = data.submissionAnswers.filter((a) => !submissionIds.includes(a.submissionId));
+
+  writeDb(data);
+  res.json({ ok: true });
+});
+
+app.get("/api/surveys/:id/preview", (req, res) => {
+  const surveyId = Number(req.params.id);
+  const data = readDb();
+  const survey = data.surveys.find((s) => s.id === surveyId);
+  if (!survey) return res.status(404).json({ error: "Không tìm thấy survey" });
+
+  const company = data.companies.find((c) => c.id === survey.companyId);
+  const questions = data.surveyQuestions
+    .filter((q) => q.surveyId === surveyId)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+
+  res.json({
+    survey: {
+      id: survey.id,
+      name: survey.name,
+      company_name: company?.name || "",
+    },
+    questions,
+    questionsPerPage,
+  });
+});
+
 app.post("/api/surveys/:id/send", async (req, res) => {
   const surveyId = Number(req.params.id);
   const data = readDb();
@@ -456,9 +631,14 @@ app.post("/api/surveys/:id/send", async (req, res) => {
 
   const company = data.companies.find((c) => c.id === survey.companyId);
   const recipients = data.recipients.filter((r) => r.surveyId === surveyId);
+  const newRecipients = recipients.filter((r) => !r.lastSentAt);
 
   if (!recipients.length) {
     return res.status(400).json({ error: "Survey chưa có người nhận" });
+  }
+
+  if (!newRecipients.length) {
+    return res.status(400).json({ error: "Không có email mới để gửi bổ sung" });
   }
 
   const delivery = {
@@ -469,7 +649,7 @@ app.post("/api/surveys/:id/send", async (req, res) => {
     failures: [],
   };
 
-  for (const r of recipients) {
+  for (const r of newRecipients) {
     const link = `${baseUrl}/s/${r.token}`;
     try {
       const mailResult = await sendSurveyEmail({
@@ -481,9 +661,11 @@ app.post("/api/surveys/:id/send", async (req, res) => {
               <img src="${baseUrl}/assets/joywork-logo.svg" alt="JOYWORK" style="width:200px;display:block;" />
             </div>
             <h2 style="margin:0 0 10px;color:#0f172a;">Mời bạn tham gia khảo sát hài lòng nhân sự</h2>
-            <p>Đây là cuộc khảo sát nhằm đánh giá độ hài lòng của nhân sự về môi trường làm việc. Các kết quả khảo sát sẽ được bảo mật 100%, không ai có thể biết được đánh giá của bạn về công ty.</p>
-            <p>Vui lòng hoàn thành khảo sát tại liên kết sau:</p>
-            <p><a href="${link}" style="color:#0f7bff;font-weight:600;">${link}</a></p>
+            <p>Đây là cuộc khảo sát nhằm đánh giá độ hài lòng của nhân sự về môi trường làm việc của Công Ty <b>${company?.name || "-"}</b>. Các kết quả khảo sát sẽ được bảo mật 100%, không ai có thể biết được đánh giá của bạn về công ty.</p>
+            <p style="margin:16px 0;">
+              <a href="${link}" style="display:inline-block;padding:10px 16px;border-radius:10px;background:#0f7bff;color:#ffffff;text-decoration:none;font-weight:700;">Bắt đầu cuộc khảo sát</a>
+            </p>
+            <p style="color:#6b7280;font-size:13px;">Nếu nút không hoạt động, bạn có thể mở link này: <a href="${link}">${link}</a></p>
             <p style="margin-top:18px;color:#6b7280;font-size:13px;">Cảm ơn bạn đã dành thời gian tham gia khảo sát.</p>
           </div>
         `,
@@ -505,6 +687,10 @@ app.post("/api/surveys/:id/send", async (req, res) => {
     }
   }
 
+  if (!survey.firstSentAt) {
+    survey.firstSentAt = now();
+    survey.expiresAt = new Date(Date.now() + surveyExpireDays * 24 * 60 * 60 * 1000).toISOString();
+  }
   survey.status = "active";
   writeDb(data);
 
@@ -575,6 +761,13 @@ app.get("/api/respond/:token", (req, res) => {
   }
 
   const survey = data.surveys.find((s) => s.id === recipient.surveyId);
+  if (!survey) {
+    return res.status(404).json({ error: "Khảo sát không tồn tại" });
+  }
+  const status = getSurveyComputedStatus(survey);
+  if (status === "expired") {
+    return res.status(410).json({ error: "Link khảo sát đã hết hạn" });
+  }
   const company = data.companies.find((c) => c.id === survey.companyId);
   const questions = data.surveyQuestions
     .filter((q) => q.surveyId === survey.id)
@@ -585,6 +778,8 @@ app.get("/api/respond/:token", (req, res) => {
       title: q.title,
       required: Boolean(q.required),
       section: q.section || "Phần mặc định",
+      group: q.group || "Nhóm mặc định",
+      condition: normalizeCondition(q.condition),
       options: Array.isArray(q.options) ? q.options : [],
     }));
 
@@ -598,8 +793,11 @@ app.get("/api/respond/:token", (req, res) => {
       id: survey.id,
       name: survey.name,
       status: survey.status,
+      computed_status: status,
       deadline_at: survey.deadlineAt,
+      expires_at: survey.expiresAt || null,
       company_name: company?.name || "",
+      questions_per_page: questionsPerPage,
     },
     questions,
     draft: draft
@@ -674,7 +872,9 @@ app.post("/api/respond/:token/submit", (req, res) => {
     .filter((q) => q.surveyId === recipient.surveyId)
     .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
 
-  for (const q of questions) {
+  const visibleQuestions = questions.filter((q) => isQuestionVisible(q, questions, answers));
+
+  for (const q of visibleQuestions) {
     if (!q.required) continue;
     const ans = answers[String(q.id)];
     const missing = ans === undefined || ans === null || ans === "" || (Array.isArray(ans) && ans.length === 0);
@@ -719,12 +919,14 @@ async function processAutomaticReminders() {
     if ((r.reminderCount || 0) > 0) continue;
 
     const lastTs = new Date(r.lastSentAt).getTime();
-    const diffDays = (nowTs - lastTs) / (1000 * 60 * 60 * 24);
-    if (diffDays < reminderAfterDays) continue;
-
     const survey = data.surveys.find((s) => s.id === r.surveyId);
+    if (!survey) continue;
+    if (getSurveyComputedStatus(survey) === "expired") continue;
     const company = data.companies.find((c) => c.id === survey.companyId);
     const link = `${baseUrl}/s/${r.token}`;
+
+    const diffHours = (nowTs - lastTs) / (1000 * 60 * 60);
+    if (diffHours < reminderAfterHours) continue;
 
     await sendSurveyEmail({
       to: r.email,
@@ -755,8 +957,8 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 app.get("/admin", (req, res) => {
-  const username = getSessionUser(req);
-  if (!username) {
+  const sessionUser = getSessionUser(req);
+  if (!sessionUser) {
     return res.redirect("/login");
   }
   res.sendFile(path.join(__dirname, "..", "public", "admin.html"));

@@ -1,23 +1,26 @@
-<svg width="640" height="240" viewBox="0 0 640 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="JOYWORK">
-  <rect width="640" height="240" fill="#ffffff"/>
+<svg width="1500" height="765" viewBox="0 0 1500 765" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="JOYWORK">
+  <rect width="1500" height="765" fill="#ffffff"/>
   <defs>
-    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#d81b60"/>
-      <stop offset="100%" stop-color="#c2185b"/>
-    </linearGradient>
-    <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#2f5f9b"/>
+    <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e11d70"/>
+      <stop offset="42%" stop-color="#be185d"/>
       <stop offset="100%" stop-color="#2f5f9b"/>
     </linearGradient>
+    <style>
+      .blue { fill: #2f5f9b; }
+      .gray { fill: #3f4f5f; }
+      .heavy { font-family: "Segoe UI", "Arial Black", Arial, sans-serif; font-weight: 800; }
+      .medium { font-family: "Segoe UI", Arial, sans-serif; font-weight: 500; }
+    </style>
   </defs>
 
-  <text x="26" y="158" font-family="Segoe UI, Arial, sans-serif" font-size="170" fill="#2f5f9b" font-weight="700">J</text>
+  <text x="6" y="465" font-size="430" class="heavy blue">J</text>
 
-  <circle cx="265" cy="112" r="72" fill="none" stroke="url(#g1)" stroke-width="28" stroke-linecap="round" stroke-dasharray="240 220" transform="rotate(40 265 112)"/>
-  <circle cx="265" cy="112" r="72" fill="none" stroke="url(#g2)" stroke-width="28" stroke-linecap="round" stroke-dasharray="250 210" transform="rotate(230 265 112)"/>
-  <circle cx="265" cy="112" r="23" fill="#c2185b"/>
+  <circle cx="618" cy="305" r="240" fill="none" stroke="url(#ringGrad)" stroke-width="110"/>
+  <circle cx="618" cy="305" r="65" fill="#be185d"/>
 
-  <text x="360" y="158" font-family="Segoe UI, Arial, sans-serif" font-size="170" fill="#2f5f9b" font-weight="700">Y</text>
+  <path class="blue" d="M973 159 H1095 V270 C1095 355 1161 419 1248 419 C1334 419 1401 354 1401 270 V159 H1500 V280 C1500 428 1398 543 1248 543 C1096 543 973 430 973 280 Z"/>
+  <rect class="blue" x="1201" y="527" width="94" height="210" rx="4"/>
 
-  <text x="112" y="218" font-family="Segoe UI, Arial, sans-serif" font-size="56" letter-spacing="18" fill="#3b4a5b" font-weight="600">WORK</text>
+  <text x="278" y="745" font-size="170" letter-spacing="34" class="medium gray">WORK</text>
 </svg>

@@ -34,7 +34,7 @@
       }
 
       .wrap {
-        max-width: 1100px;
+        max-width: 1320px;
         margin: 24px auto 80px;
         padding: 0 16px;
       }
@@ -59,16 +59,18 @@
       }
 
       .brand-logo-box {
-        width: 160px;
+        width: 120px;
         background: #fff;
         border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 8px;
+        border-radius: 10px;
+        padding: 3px;
         box-shadow: 0 8px 22px rgba(16, 24, 40, 0.14);
       }
 
       .brand-logo-box img {
         width: 100%;
+        max-height: 56px;
+        object-fit: contain;
         display: block;
       }
 
@@ -79,8 +81,12 @@
 
       .grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
         gap: 16px;
+      }
+
+      .template-card {
+        min-height: 760px;
       }
 
       .card {
@@ -209,6 +215,49 @@
         background: rgba(252, 255, 255, 0.8);
       }
 
+      .question-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .question-toggle {
+        flex: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 0;
+        padding: 8px 10px;
+        background: transparent;
+        border: 1px solid var(--line);
+        color: #163f77;
+        box-shadow: none;
+        border-radius: 10px;
+        text-align: left;
+      }
+
+      .question-toggle:hover {
+        transform: none;
+        background: rgba(15, 123, 255, 0.06);
+      }
+
+      .question-item-body {
+        display: none;
+        margin-top: 10px;
+      }
+
+      .question-item.open .question-item-body {
+        display: block;
+      }
+
+      #templateQuestionList {
+        margin-top: 8px;
+        max-height: 520px;
+        overflow: auto;
+        padding-right: 4px;
+      }
+
       .section-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -265,7 +314,7 @@
         background: rgba(15, 123, 255, 0.05);
       }
 
-      @media (max-width: 920px) {
+      @media (max-width: 1060px) {
         .grid { grid-template-columns: 1fr; }
         .kpi-grid { grid-template-columns: 1fr 1fr; }
         .charts { grid-template-columns: 1fr; }
@@ -278,7 +327,7 @@
       <div class="topbar">
         <div class="brand-wrap">
           <div class="brand-logo-box">
-            <img src="/assets/joywork-logo.svg" alt="JOYWORK" />
+            <img src="/assets/joywork-logo.svg?v=4" alt="JOYWORK" style="max-height:56px;" />
           </div>
           <h1 class="title">Survey Admin Console</h1>
         </div>
@@ -287,7 +336,7 @@
       <p class="sub">Tạo template, tạo cuộc khảo sát cho doanh nghiệp, gửi mail và theo dõi realtime dashboard.</p>
 
       <div class="grid">
-        <section class="card">
+        <section class="card template-card">
           <h2>1) Tạo Template</h2>
           <label>Template đã tạo
             <select id="templateEditorSelect"></select>
@@ -308,6 +357,18 @@
             </div>
           </div>
 
+          <div class="row">
+            <label>Thêm nhóm vào phần
+              <select id="groupSectionSelect"></select>
+            </label>
+            <label>Tên nhóm
+              <input id="newGroupName" placeholder="Nhóm 1: Thông tin cá nhân" />
+            </label>
+            <div style="display:flex; align-items:flex-end;">
+              <button class="secondary" id="addGroupBtn">Thêm nhóm</button>
+            </div>
+          </div>
+
           <div class="question-item">
             <span class="pill">Thêm câu hỏi</span>
             <label>Tiêu đề câu hỏi <input id="qTitle" placeholder="Bạn hài lòng mức nào với môi trường làm việc?" /></label>
@@ -323,11 +384,22 @@
               <label>Phần
                 <select id="qSection"></select>
               </label>
+              <label>Nhóm
+                <select id="qGroup"></select>
+              </label>
               <label>Required
                 <select id="qRequired">
                   <option value="1">Có</option>
                   <option value="0">Không</option>
                 </select>
+              </label>
+            </div>
+            <div class="row">
+              <label>Nguồn điều kiện (nếu có)
+                <select id="qConditionDependsOn"></select>
+              </label>
+              <label>Giá trị để hiện câu hỏi
+                <input id="qConditionEquals" placeholder="Ví dụ: Có" />
               </label>
             </div>
             <label>Options (mỗi dòng 1 option, chỉ dùng cho multiple choice)
@@ -360,6 +432,17 @@
       <section class="card" style="margin-top:16px;">
         <h2>3) Danh Sách Cuộc Khảo Sát</h2>
         <p class="hint">Bấm vào từng cuộc khảo sát để tiếp tục chỉnh nội dung, thêm email nhân sự và theo dõi tiến độ gửi/hoàn thành.</p>
+        <div class="row">
+          <label>Lọc trạng thái
+            <select id="surveyStatusFilter">
+              <option value="all">Tất cả</option>
+              <option value="draft">Nháp</option>
+              <option value="active">Đang diễn ra</option>
+              <option value="completed">Hoàn thành</option>
+              <option value="expired">Đã hết hạn</option>
+            </select>
+          </label>
+        </div>
         <div id="surveyListArea"></div>
       </section>
 
@@ -388,11 +471,14 @@
       const state = {
         templateQuestions: [],
         templateSections: ["Phần mặc định"],
+        templateGroupsBySection: { "Phần mặc định": ["Nhóm mặc định"] },
         templates: [],
         surveys: [],
         currentSurveyId: null,
         editingTemplateId: null,
+        openQuestionIdx: null,
         draggedQuestionIndex: null,
+        currentUser: null,
         charts: {
           status: null,
           scale: null,
@@ -418,13 +504,99 @@
           .replaceAll("'", "&#039;");
       }
 
+      function ensureSection(sectionName) {
+        if (!state.templateSections.includes(sectionName)) {
+          state.templateSections.push(sectionName);
+        }
+        if (!state.templateGroupsBySection[sectionName]) {
+          state.templateGroupsBySection[sectionName] = ["Nhóm mặc định"];
+        }
+      }
+
+      function ensureGroup(sectionName, groupName) {
+        ensureSection(sectionName);
+        if (!state.templateGroupsBySection[sectionName].includes(groupName)) {
+          state.templateGroupsBySection[sectionName].push(groupName);
+        }
+      }
+
+      function normalizeSectionsFromQuestions() {
+        state.templateSections = ["Phần mặc định"];
+        state.templateGroupsBySection = { "Phần mặc định": ["Nhóm mặc định"] };
+
+        for (const q of state.templateQuestions) {
+          const section = String(q.section || "Phần mặc định").trim() || "Phần mặc định";
+          const group = String(q.group || "Nhóm mặc định").trim() || "Nhóm mặc định";
+          ensureGroup(section, group);
+        }
+      }
+
+      function renderSectionOptions(selected) {
+        return state.templateSections
+          .map((name) => `<option value="${escapeHtml(name)}" ${name === selected ? 'selected' : ''}>${escapeHtml(name)}</option>`)
+          .join('');
+      }
+
+      function renderGroupOptions(sectionName, selected) {
+        const groups = state.templateGroupsBySection[sectionName] || ["Nhóm mặc định"];
+        return groups
+          .map((name) => `<option value="${escapeHtml(name)}" ${name === selected ? 'selected' : ''}>${escapeHtml(name)}</option>`)
+          .join('');
+      }
+
+      function renderGroupDropdownForNewQuestion() {
+        const section = document.getElementById('qSection').value || 'Phần mặc định';
+        const groupSelect = document.getElementById('qGroup');
+        groupSelect.innerHTML = renderGroupOptions(section, (state.templateGroupsBySection[section] || ['Nhóm mặc định'])[0]);
+      }
+
+      function renderConditionSourceDropdownForNewQuestion() {
+        const sourceSelect = document.getElementById('qConditionDependsOn');
+        if (!sourceSelect) return;
+
+        const rows = state.templateQuestions
+          .map((q, idx) => ({
+            idx,
+            title: String(q.title || '').trim(),
+          }))
+          .filter((x) => x.title);
+
+        const options = ['<option value="">Không điều kiện</option>']
+          .concat(rows.map((x) => `<option value="${escapeHtml(x.title)}">Câu ${x.idx + 1}: ${escapeHtml(x.title)}</option>`));
+
+        const current = sourceSelect.value || '';
+        sourceSelect.innerHTML = options.join('');
+        sourceSelect.value = rows.some((x) => x.title === current) ? current : '';
+      }
+
+      function renderSectionDropdown() {
+        const qSection = document.getElementById('qSection');
+        const groupSectionSelect = document.getElementById('groupSectionSelect');
+        qSection.innerHTML = renderSectionOptions(qSection.value || state.templateSections[0] || 'Phần mặc định');
+        groupSectionSelect.innerHTML = renderSectionOptions(groupSectionSelect.value || state.templateSections[0] || 'Phần mặc định');
+        renderGroupDropdownForNewQuestion();
+        renderConditionSourceDropdownForNewQuestion();
+      }
+
       function questionToEditorRow(q, idx) {
+        const section = q.section || 'Phần mặc định';
+        const group = q.group || 'Nhóm mặc định';
+        const isOpen = state.openQuestionIdx === idx;
+        const titlePreview = (q.title || '(chưa có tiêu đề)').trim();
         return `
-          <div class="question-item draggable" draggable="true" data-drag-idx="${idx}">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-              <b>Câu ${idx + 1} <span class="hint">(${escapeHtml(q.section || 'Phần mặc định')})</span></b>
-              <button class="secondary" style="width:auto; margin:0; padding:6px 10px;" data-remove-idx="${idx}">Xóa</button>
+          <div class="question-item draggable ${isOpen ? 'open' : ''}" draggable="true" data-drag-idx="${idx}">
+            <div class="question-item-header">
+              <button type="button" class="question-toggle secondary" data-toggle-idx="${idx}">
+                <span><b>Câu ${idx + 1}</b> ${escapeHtml(titlePreview)} <span class="hint">(${escapeHtml(section)} / ${escapeHtml(group)})</span></span>
+                <span>${isOpen ? '▾' : '▸'}</span>
+              </button>
+              <div style="display:flex; gap:6px;">
+                <button type="button" class="secondary" style="width:auto; margin:0; padding:6px 10px;" data-move-up-idx="${idx}">↑</button>
+                <button type="button" class="secondary" style="width:auto; margin:0; padding:6px 10px;" data-move-down-idx="${idx}">↓</button>
+                <button type="button" class="secondary" style="width:auto; margin:0; padding:6px 10px;" data-remove-idx="${idx}">Xóa</button>
+              </div>
             </div>
+            <div class="question-item-body">
             <input data-field="title" data-idx="${idx}" value="${escapeHtml(q.title || '')}" placeholder="Tiêu đề câu hỏi" />
             <div class="row">
               <select data-field="type" data-idx="${idx}">
@@ -438,45 +610,68 @@
                 <option value="0" ${!q.required ? 'selected' : ''}>Optional</option>
               </select>
             </div>
-            <label>Phần
-              <select data-field="section" data-idx="${idx}">${renderSectionOptions(q.section || 'Phần mặc định')}</select>
-            </label>
+            <div class="row">
+              <label>Phần
+                <select data-field="section" data-idx="${idx}">${renderSectionOptions(section)}</select>
+              </label>
+              <label>Nhóm
+                <select data-field="group" data-idx="${idx}">${renderGroupOptions(section, group)}</select>
+              </label>
+            </div>
+            <div class="row">
+              <label>Điều kiện: phụ thuộc câu hỏi
+                <select data-field="conditionDependsOn" data-idx="${idx}">
+                  <option value="">Không điều kiện</option>
+                  ${state.templateQuestions
+                    .map((item, itemIdx) => ({ item, itemIdx }))
+                    .filter((x) => x.itemIdx !== idx)
+                    .map((x) => {
+                      const val = String(x.item.title || '').trim();
+                      const selected = (q.condition?.dependsOnTitle || '') === val ? 'selected' : '';
+                      return `<option value="${escapeHtml(val)}" ${selected}>Câu ${x.itemIdx + 1}: ${escapeHtml(val || '(chưa có tiêu đề)')}</option>`;
+                    })
+                    .join('')}
+                </select>
+              </label>
+              <label>Giá trị để hiện câu hỏi này
+                <input data-field="conditionEquals" data-idx="${idx}" value="${escapeHtml(q.condition?.equalsValue || '')}" placeholder="Ví dụ: Có" />
+              </label>
+            </div>
             <textarea data-field="options" data-idx="${idx}" rows="2" placeholder="Options cho single/multiple choice">${escapeHtml((q.options || []).join('\n'))}</textarea>
+            </div>
           </div>
         `;
       }
 
-      function normalizeSectionsFromQuestions() {
-        const names = Array.from(new Set(state.templateQuestions.map(q => String(q.section || '').trim()).filter(Boolean)));
-        if (!names.includes('Phần mặc định')) names.unshift('Phần mặc định');
-        state.templateSections = names.length ? names : ['Phần mặc định'];
-      }
-
-      function renderSectionOptions(selected) {
-        return state.templateSections
-          .map(name => `<option value="${escapeHtml(name)}" ${name === selected ? 'selected' : ''}>${escapeHtml(name)}</option>`)
-          .join('');
-      }
-
-      function renderSectionDropdown() {
-        const select = document.getElementById('qSection');
-        select.innerHTML = renderSectionOptions(state.templateSections[0] || 'Phần mặc định');
-      }
-
-      function moveQuestionToSection(index, sectionName) {
+      function moveQuestionToBucket(index, sectionName, groupName) {
         if (!state.templateQuestions[index]) return;
         state.templateQuestions[index].section = sectionName;
+        state.templateQuestions[index].group = groupName;
         renderTemplateQuestions();
       }
 
       function renderSectionBoard() {
         const board = document.getElementById('templateSectionBoard');
         board.innerHTML = state.templateSections.map((section) => {
-          const rows = state.templateQuestions
-            .map((q, idx) => ({ ...q, idx }))
-            .filter((q) => (q.section || 'Phần mặc định') === section)
-            .map((q) => `<div class="question-item" style="margin:6px 0; padding:8px;"><b>#${q.idx + 1}</b> ${escapeHtml(q.title || '(chưa có tiêu đề)')}</div>`)
-            .join('');
+          const groups = state.templateGroupsBySection[section] || ['Nhóm mặc định'];
+          const groupBlocks = groups.map((group) => {
+            const rows = state.templateQuestions
+              .map((q, idx) => ({ ...q, idx }))
+              .filter((q) => (q.section || 'Phần mặc định') === section && (q.group || 'Nhóm mặc định') === group)
+              .map((q) => `<div class="question-item" style="margin:6px 0; padding:8px;"><b>#${q.idx + 1}</b> ${escapeHtml(q.title || '(chưa có tiêu đề)')}</div>`)
+              .join('');
+
+            return `
+              <div style="margin-bottom:10px; border:1px dashed #b7cbff; border-radius:12px; padding:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                  <b>${escapeHtml(group)}</b>
+                </div>
+                <div class="section-drop" data-drop-section="${escapeHtml(section)}" data-drop-group="${escapeHtml(group)}">
+                  ${rows || '<div class="hint">Kéo câu hỏi vào nhóm này</div>'}
+                </div>
+              </div>
+            `;
+          }).join('');
 
           return `
             <div class="section-col">
@@ -484,40 +679,49 @@
                 <h4>${escapeHtml(section)}</h4>
                 ${section === 'Phần mặc định' ? '' : `<button class="secondary" style="width:auto; margin:0; padding:6px 10px;" data-remove-section="${escapeHtml(section)}">Xóa phần</button>`}
               </div>
-              <div class="section-drop" data-drop-section="${escapeHtml(section)}">
-                ${rows || '<div class="hint">Kéo câu hỏi vào đây</div>'}
-              </div>
+              ${groupBlocks}
             </div>
           `;
         }).join('');
       }
 
       function getSurveyUiStatus(s) {
-        const deadline = s.deadlineAt ? new Date(s.deadlineAt).getTime() : null;
-        if (deadline && deadline < Date.now()) return 'Đã hết hạn';
+        if (s.status === 'expired') return 'Đã hết hạn';
         if (s.status === 'draft') return 'Nháp';
-        if (s.status === 'active') return 'Đang chạy';
-        return s.status || 'Không rõ';
+        if (s.status === 'active') return 'Đang diễn ra';
+        if (s.status === 'completed') return 'Hoàn thành';
+        return 'Không rõ';
       }
 
       function renderSurveyList() {
         const root = document.getElementById('surveyListArea');
-        if (!state.surveys.length) {
-          root.innerHTML = '<div class="hint">Chưa có cuộc khảo sát nào.</div>';
+        const statusFilter = document.getElementById('surveyStatusFilter').value;
+        const rowsData = state.surveys.filter((s) => statusFilter === 'all' || s.status === statusFilter);
+
+        if (!rowsData.length) {
+          root.innerHTML = '<div class="hint">Không có khảo sát phù hợp bộ lọc.</div>';
           return;
         }
 
-        const rows = state.surveys.map((s) => `
+        const rows = rowsData.map((s) => {
+          const canDelete = state.currentUser?.role === 'admin';
+          return `
           <tr>
             <td>${escapeHtml(s.name)}</td>
             <td>${escapeHtml(s.company_name || '-')}</td>
             <td>${escapeHtml(getSurveyUiStatus(s))}</td>
-            <td>${s.deadlineAt ? escapeHtml(new Date(s.deadlineAt).toLocaleString()) : '-'}</td>
+            <td>${s.start_at ? escapeHtml(new Date(s.start_at).toLocaleString()) : '-'}</td>
+            <td>${s.expires_at ? escapeHtml(new Date(s.expires_at).toLocaleString()) : '-'}</td>
             <td>${s.total_recipients || 0}</td>
             <td>${s.completed_recipients || 0}</td>
-            <td><button class="secondary" style="width:auto; margin:0; padding:6px 10px;" data-open-survey="${s.id}">Mở quản lý</button></td>
+            <td>
+              <button class="secondary" style="width:auto; margin:0; padding:6px 10px;" data-open-survey="${s.id}">Quản lý</button>
+              <button class="secondary" style="width:auto; margin:0; padding:6px 10px;" data-open-preview="${s.id}">Preview</button>
+              ${canDelete ? `<button class="secondary" style="width:auto; margin:0; padding:6px 10px; border-color:#ef4444; color:#b91c1c;" data-delete-survey="${s.id}">Xóa</button>` : ''}
+            </td>
           </tr>
-        `).join('');
+        `;
+        }).join('');
 
         root.innerHTML = `
           <table>
@@ -526,7 +730,8 @@
                 <th>Tên khảo sát</th>
                 <th>Doanh nghiệp</th>
                 <th>Tình trạng</th>
-                <th>Hạn chót</th>
+                <th>Ngày bắt đầu</th>
+                <th>Ngày hết hạn</th>
                 <th>Tổng gửi</th>
                 <th>Hoàn thành</th>
                 <th>Thao tác</th>
@@ -547,9 +752,16 @@
         setTemplateMode(null);
         state.templateQuestions = [];
         state.templateSections = ['Phần mặc định'];
+        state.templateGroupsBySection = { 'Phần mặc định': ['Nhóm mặc định'] };
+        state.openQuestionIdx = null;
         document.getElementById('templateName').value = '';
         document.getElementById('templateDesc').value = '';
         renderTemplateQuestions();
+      }
+
+      async function loadCurrentUser() {
+        const data = await (await fetch('/api/auth/me')).json();
+        state.currentUser = data;
       }
 
       async function loadTemplates() {
@@ -557,11 +769,11 @@
         state.templates = data;
 
         const select = document.getElementById('templateSelect');
-        select.innerHTML = data.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+        select.innerHTML = data.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
 
         const editorSelect = document.getElementById('templateEditorSelect');
         editorSelect.innerHTML = data.length
-          ? data.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('')
+          ? data.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('')
           : '<option value="">Chưa có template</option>';
       }
 
@@ -571,7 +783,11 @@
         renderSurveyList();
 
         const dd = document.getElementById('surveyDashboardSelect');
-        dd.innerHTML = data.map(s => `<option value="${s.id}">${escapeHtml(s.name)} - ${escapeHtml(s.company_name)}</option>`).join('');
+        const current = dd.value;
+        dd.innerHTML = data.map((s) => `<option value="${s.id}">${escapeHtml(s.name)} - ${escapeHtml(s.company_name)}</option>`).join('');
+        if (current && data.some((s) => String(s.id) === current)) {
+          dd.value = current;
+        }
       }
 
       function renderTemplateQuestions() {
@@ -580,11 +796,59 @@
         renderSectionBoard();
       }
 
+      function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const raw = String(reader.result || '');
+            const base64 = raw.includes(',') ? raw.split(',')[1] : raw;
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      document.getElementById('qSection').addEventListener('change', () => {
+        renderGroupDropdownForNewQuestion();
+      });
+
       document.getElementById('templateQuestionList').addEventListener('click', (e) => {
+        const toggleIdx = Number(e.target?.dataset?.toggleIdx || e.target?.closest('[data-toggle-idx]')?.dataset?.toggleIdx);
+        if (!Number.isNaN(toggleIdx)) {
+          state.openQuestionIdx = state.openQuestionIdx === toggleIdx ? null : toggleIdx;
+          renderTemplateQuestions();
+          return;
+        }
+
         const idx = Number(e.target?.dataset?.removeIdx);
         if (!Number.isNaN(idx)) {
           state.templateQuestions.splice(idx, 1);
+          if (state.openQuestionIdx === idx) state.openQuestionIdx = null;
+          if (state.openQuestionIdx !== null && state.openQuestionIdx > idx) state.openQuestionIdx -= 1;
           normalizeSectionsFromQuestions();
+          renderTemplateQuestions();
+          return;
+        }
+
+        const upIdx = Number(e.target?.dataset?.moveUpIdx);
+        if (!Number.isNaN(upIdx) && upIdx > 0) {
+          const temp = state.templateQuestions[upIdx - 1];
+          state.templateQuestions[upIdx - 1] = state.templateQuestions[upIdx];
+          state.templateQuestions[upIdx] = temp;
+          if (state.openQuestionIdx === upIdx) state.openQuestionIdx = upIdx - 1;
+          else if (state.openQuestionIdx === upIdx - 1) state.openQuestionIdx = upIdx;
+          renderTemplateQuestions();
+          return;
+        }
+
+        const downIdx = Number(e.target?.dataset?.moveDownIdx);
+        if (!Number.isNaN(downIdx) && downIdx < state.templateQuestions.length - 1) {
+          const temp = state.templateQuestions[downIdx + 1];
+          state.templateQuestions[downIdx + 1] = state.templateQuestions[downIdx];
+          state.templateQuestions[downIdx] = temp;
+          if (state.openQuestionIdx === downIdx) state.openQuestionIdx = downIdx + 1;
+          else if (state.openQuestionIdx === downIdx + 1) state.openQuestionIdx = downIdx;
           renderTemplateQuestions();
         }
       });
@@ -592,8 +856,12 @@
       document.getElementById('templateSectionBoard').addEventListener('click', (e) => {
         const section = e.target?.dataset?.removeSection;
         if (!section) return;
-        state.templateSections = state.templateSections.filter(s => s !== section);
-        state.templateQuestions = state.templateQuestions.map(q => ({ ...q, section: q.section === section ? 'Phần mặc định' : q.section }));
+        state.templateSections = state.templateSections.filter((s) => s !== section);
+        delete state.templateGroupsBySection[section];
+        state.templateQuestions = state.templateQuestions.map((q) => {
+          if (q.section !== section) return q;
+          return { ...q, section: 'Phần mặc định', group: 'Nhóm mặc định' };
+        });
         normalizeSectionsFromQuestions();
         renderTemplateQuestions();
       });
@@ -605,27 +873,54 @@
       });
 
       document.getElementById('templateSectionBoard').addEventListener('dragover', (e) => {
-        if (e.target?.closest('[data-drop-section]')) e.preventDefault();
+        if (e.target?.closest('[data-drop-section][data-drop-group]')) e.preventDefault();
       });
 
       document.getElementById('templateSectionBoard').addEventListener('drop', (e) => {
-        const dropEl = e.target?.closest('[data-drop-section]');
+        const dropEl = e.target?.closest('[data-drop-section][data-drop-group]');
         if (!dropEl) return;
         e.preventDefault();
         const section = dropEl.dataset.dropSection;
+        const group = dropEl.dataset.dropGroup;
         const idx = state.draggedQuestionIndex;
-        if (idx === null || section === undefined) return;
-        moveQuestionToSection(idx, section);
+        if (idx === null || section === undefined || group === undefined) return;
+        moveQuestionToBucket(idx, section, group);
         state.draggedQuestionIndex = null;
       });
 
       document.getElementById('surveyListArea').addEventListener('click', async (e) => {
         const surveyId = Number(e.target?.dataset?.openSurvey);
-        if (!surveyId) return;
-        await openSurveySetup(surveyId);
-        document.getElementById('surveyDashboardSelect').value = String(surveyId);
-        await refreshDashboard();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (surveyId) {
+          await openSurveySetup(surveyId);
+          document.getElementById('surveyDashboardSelect').value = String(surveyId);
+          await refreshDashboard();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
+
+        const previewId = Number(e.target?.dataset?.openPreview);
+        if (previewId) {
+          const data = await (await fetch(`/api/surveys/${previewId}/preview`)).json();
+          const sample = (data.questions || [])
+            .slice(0, 10)
+            .map((q, i) => `${i + 1}. [${q.section || 'Phần mặc định'} / ${q.group || 'Nhóm mặc định'}] ${q.title}`)
+            .join('\n');
+          alert(`Preview khảo sát: ${data.survey.name} (${data.survey.company_name})\nHiển thị ${data.questionsPerPage} câu/màn\n\n${sample}`);
+          return;
+        }
+
+        const deleteId = Number(e.target?.dataset?.deleteSurvey);
+        if (deleteId) {
+          if (!confirm('Xóa khảo sát này? Hành động không thể hoàn tác.')) return;
+          const res = await fetch(`/api/surveys/${deleteId}`, { method: 'DELETE' });
+          const j = await res.json();
+          if (!res.ok) {
+            alert(j.error || 'Không xóa được khảo sát');
+            return;
+          }
+          await loadSurveys();
+          alert('Đã xóa khảo sát');
+        }
       });
 
       document.getElementById('templateQuestionList').addEventListener('input', (e) => {
@@ -635,10 +930,17 @@
 
         if (field === 'title') {
           state.templateQuestions[idx].title = e.target.value;
+          renderConditionSourceDropdownForNewQuestion();
         }
-
         if (field === 'options') {
-          state.templateQuestions[idx].options = e.target.value.split('\n').map(v => v.trim()).filter(Boolean);
+          state.templateQuestions[idx].options = e.target.value.split('\n').map((v) => v.trim()).filter(Boolean);
+        }
+        if (field === 'conditionEquals') {
+          const current = state.templateQuestions[idx].condition || {};
+          state.templateQuestions[idx].condition = {
+            dependsOnTitle: current.dependsOnTitle || '',
+            equalsValue: e.target.value,
+          };
         }
       });
 
@@ -650,19 +952,38 @@
         if (field === 'type') {
           state.templateQuestions[idx].type = e.target.value;
         }
-
         if (field === 'required') {
           state.templateQuestions[idx].required = e.target.value === '1';
         }
-
         if (field === 'section') {
-          state.templateQuestions[idx].section = e.target.value;
+          const section = e.target.value || 'Phần mặc định';
+          ensureSection(section);
+          state.templateQuestions[idx].section = section;
+          const firstGroup = (state.templateGroupsBySection[section] || ['Nhóm mặc định'])[0];
+          state.templateQuestions[idx].group = firstGroup;
+          renderTemplateQuestions();
+        }
+        if (field === 'group') {
+          state.templateQuestions[idx].group = e.target.value || 'Nhóm mặc định';
+        }
+        if (field === 'conditionDependsOn') {
+          const current = state.templateQuestions[idx].condition || {};
+          const dependsOnTitle = e.target.value || '';
+          if (!dependsOnTitle) {
+            state.templateQuestions[idx].condition = null;
+          } else {
+            state.templateQuestions[idx].condition = {
+              dependsOnTitle,
+              equalsValue: current.equalsValue || '',
+            };
+          }
+          renderTemplateQuestions();
         }
       });
 
       document.getElementById('loadTemplateForEditBtn').onclick = () => {
         const selectedId = Number(document.getElementById('templateEditorSelect').value);
-        const tpl = state.templates.find(t => t.id === selectedId);
+        const tpl = state.templates.find((t) => t.id === selectedId);
         if (!tpl) {
           alert('Không tìm thấy template');
           return;
@@ -671,13 +992,16 @@
         setTemplateMode(tpl.id);
         document.getElementById('templateName').value = tpl.name || '';
         document.getElementById('templateDesc').value = tpl.description || '';
-        state.templateQuestions = (tpl.questions || []).map(q => ({
+        state.templateQuestions = (tpl.questions || []).map((q) => ({
           title: q.title,
           type: q.type,
           required: !!q.required,
           section: q.section || 'Phần mặc định',
+          group: q.group || 'Nhóm mặc định',
+          condition: q.condition || null,
           options: Array.isArray(q.options) ? q.options : [],
         }));
+        state.openQuestionIdx = state.templateQuestions.length ? 0 : null;
         normalizeSectionsFromQuestions();
         renderTemplateQuestions();
       };
@@ -694,8 +1018,20 @@
           alert('Phần này đã tồn tại');
           return;
         }
-        state.templateSections.push(name);
+        ensureSection(name);
         document.getElementById('newSectionName').value = '';
+        renderTemplateQuestions();
+      };
+
+      document.getElementById('addGroupBtn').onclick = () => {
+        const section = document.getElementById('groupSectionSelect').value || 'Phần mặc định';
+        const name = document.getElementById('newGroupName').value.trim();
+        if (!name) {
+          alert('Nhập tên nhóm');
+          return;
+        }
+        ensureGroup(section, name);
+        document.getElementById('newGroupName').value = '';
         renderTemplateQuestions();
       };
 
@@ -703,19 +1039,37 @@
         const title = document.getElementById('qTitle').value.trim();
         const type = document.getElementById('qType').value;
         const section = document.getElementById('qSection').value || 'Phần mặc định';
+        const group = document.getElementById('qGroup').value || 'Nhóm mặc định';
+        const conditionDependsOn = document.getElementById('qConditionDependsOn').value || '';
+        const conditionEquals = document.getElementById('qConditionEquals').value.trim();
         const required = document.getElementById('qRequired').value === '1';
-        const options = document.getElementById('qOptions').value.split('\n').map(v => v.trim()).filter(Boolean);
+        const options = document.getElementById('qOptions').value.split('\n').map((v) => v.trim()).filter(Boolean);
 
         if (!title) {
           alert('Cần nhập tiêu đề câu hỏi');
           return;
         }
 
-        state.templateQuestions.push({ title, type, section, required, options });
+        state.templateQuestions.push({
+          title,
+          type,
+          section,
+          group,
+          required,
+          options,
+          condition: conditionDependsOn && conditionEquals
+            ? {
+                dependsOnTitle: conditionDependsOn,
+                equalsValue: conditionEquals,
+              }
+            : null,
+        });
+        state.openQuestionIdx = state.templateQuestions.length - 1;
         renderTemplateQuestions();
-
         document.getElementById('qTitle').value = '';
         document.getElementById('qOptions').value = '';
+        document.getElementById('qConditionDependsOn').value = '';
+        document.getElementById('qConditionEquals').value = '';
       };
 
       document.getElementById('saveTemplateBtn').onclick = async () => {
@@ -727,7 +1081,7 @@
           return;
         }
 
-        const invalidQuestion = state.templateQuestions.find(q => !String(q.title || '').trim());
+        const invalidQuestion = state.templateQuestions.find((q) => !String(q.title || '').trim());
         if (invalidQuestion) {
           alert('Mỗi câu hỏi cần có tiêu đề');
           return;
@@ -736,10 +1090,17 @@
         const payload = {
           name,
           description,
-          questions: state.templateQuestions.map(q => ({
+          questions: state.templateQuestions.map((q) => ({
             title: String(q.title || '').trim(),
             type: q.type,
             section: String(q.section || 'Phần mặc định').trim() || 'Phần mặc định',
+            group: String(q.group || 'Nhóm mặc định').trim() || 'Nhóm mặc định',
+            condition: q.condition && q.condition.dependsOnTitle && q.condition.equalsValue
+              ? {
+                  dependsOnTitle: String(q.condition.dependsOnTitle || '').trim(),
+                  equalsValue: String(q.condition.equalsValue || '').trim(),
+                }
+              : null,
             required: !!q.required,
             options: Array.isArray(q.options) ? q.options : [],
           })),
@@ -752,7 +1113,7 @@
         const res = await fetch(url, {
           method,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
         });
 
         if (!res.ok) {
@@ -779,7 +1140,7 @@
         const res = await fetch('/api/surveys', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ companyName, templateId, surveyName, deadlineAt })
+          body: JSON.stringify({ companyName, templateId, surveyName, deadlineAt }),
         });
 
         if (!res.ok) {
@@ -796,6 +1157,7 @@
       async function openSurveySetup(surveyId) {
         const data = await (await fetch(`/api/surveys/${surveyId}/setup`)).json();
         const progress = await (await fetch(`/api/dashboard/${surveyId}`)).json();
+        const surveyMeta = state.surveys.find((s) => s.id === surveyId) || {};
 
         const qHtml = data.questions.map((q, idx) => {
           const options = (q.options || []).join('\n');
@@ -803,7 +1165,14 @@
             <div class="question-item">
               <div><b>Câu ${idx + 1}</b></div>
               <input data-k="title" data-i="${idx}" value="${escapeHtml(q.title)}" />
-              <input data-k="section" data-i="${idx}" value="${escapeHtml(q.section || 'Phần mặc định')}" placeholder="Phần câu hỏi" />
+              <div class="row">
+                <input data-k="section" data-i="${idx}" value="${escapeHtml(q.section || 'Phần mặc định')}" placeholder="Phần câu hỏi" />
+                <input data-k="group" data-i="${idx}" value="${escapeHtml(q.group || 'Nhóm mặc định')}" placeholder="Nhóm câu hỏi" />
+              </div>
+              <div class="row">
+                <input data-k="conditionDependsOn" data-i="${idx}" value="${escapeHtml(q.condition?.dependsOnTitle || '')}" placeholder="Điều kiện theo tiêu đề câu hỏi (ví dụ: Bạn có sẵn sàng...?)" />
+                <input data-k="conditionEquals" data-i="${idx}" value="${escapeHtml(q.condition?.equalsValue || '')}" placeholder="Giá trị để hiển thị (ví dụ: Có)" />
+              </div>
               <div class="row">
                 <select data-k="type" data-i="${idx}">
                   <option value="scale" ${q.type === 'scale' ? 'selected' : ''}>Mức độ 1-5</option>
@@ -822,7 +1191,7 @@
         }).join('');
 
         const recipientRows = progress.recipients
-          .map(r => `<tr><td>${escapeHtml(r.email)}</td><td>${escapeHtml(r.status)}</td><td>${r.reminder_count}</td><td>${r.last_sent_at || '-'}</td></tr>`)
+          .map((r) => `<tr><td>${escapeHtml(r.email)}</td><td>${escapeHtml(r.status)}</td><td>${r.reminder_count}</td><td>${r.last_sent_at || '-'}</td></tr>`)
           .join('');
 
         const setupArea = document.getElementById('setupArea');
@@ -835,45 +1204,98 @@
             <div class="kpi"><div>Đang làm dở</div><b>${progress.metrics.inProgress}</b></div>
             <div class="kpi"><div>Tỉ lệ hoàn thành</div><b>${progress.metrics.completionRate}%</b></div>
           </div>
+
+          <h3>Thông tin cuộc khảo sát</h3>
+          <div class="row">
+            <label>Tên khảo sát
+              <input id="editSurveyName" value="${escapeHtml(data.survey.name || '')}" />
+            </label>
+            <label>Tên doanh nghiệp
+              <input id="editSurveyCompany" value="${escapeHtml(data.survey.company_name || '')}" />
+            </label>
+            <label>Trạng thái
+              <select id="editSurveyStatus">
+                <option value="draft" ${surveyMeta.status === 'draft' ? 'selected' : ''}>Nháp</option>
+                <option value="active" ${surveyMeta.status === 'active' ? 'selected' : ''}>Đang diễn ra</option>
+                <option value="completed" ${surveyMeta.status === 'completed' ? 'selected' : ''}>Hoàn thành</option>
+              </select>
+            </label>
+          </div>
+
           <h3>Chỉnh câu hỏi survey riêng</h3>
           ${qHtml}
+
           <h3>Danh sách email nhân sự</h3>
           <textarea id="emailsInput" rows="5" placeholder="mỗi dòng 1 email"></textarea>
+          <label>Import email bằng Excel (.xlsx)
+            <input id="emailsExcelFile" type="file" accept=".xlsx,.xls" />
+          </label>
           <p style="color:#48606b; font-size:12px;">Đã có: ${data.recipients.length} người nhận</p>
+
           <h3>Tiến độ gửi mail và hoàn thành theo nhân sự</h3>
           <table>
             <thead><tr><th>Email</th><th>Trạng thái</th><th>Nhắc</th><th>Lần gửi gần nhất</th></tr></thead>
             <tbody>${recipientRows || '<tr><td colspan="4">Chưa có người nhận</td></tr>'}</tbody>
           </table>
+
           <div class="row" style="margin-top:10px;">
+            <button id="saveMetaBtn" class="secondary">Lưu thông tin survey</button>
             <button id="saveSetupBtn">Lưu setup</button>
-            <button id="sendSurveyBtn" class="secondary">Gửi khảo sát</button>
+            <button id="previewSurveyBtn" class="secondary">Xem lại khảo sát</button>
+            <button id="sendSurveyBtn" class="secondary">Gửi khảo sát cho email mới</button>
           </div>
         `;
+
+        document.getElementById('saveMetaBtn').onclick = async () => {
+          const name = document.getElementById('editSurveyName').value.trim();
+          const companyName = document.getElementById('editSurveyCompany').value.trim();
+          const status = document.getElementById('editSurveyStatus').value;
+          const res = await fetch(`/api/surveys/${surveyId}/meta`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, companyName, status }),
+          });
+          const j = await res.json();
+          if (!res.ok) {
+            alert(j.error || 'Không lưu được thông tin survey');
+            return;
+          }
+          alert('Đã lưu thông tin survey');
+          await loadSurveys();
+        };
 
         document.getElementById('saveSetupBtn').onclick = async () => {
           const parsedQuestions = [...setupArea.querySelectorAll('[data-k="title"]')].map((el, idx) => {
             const type = setupArea.querySelector(`[data-k="type"][data-i="${idx}"]`).value;
             const section = setupArea.querySelector(`[data-k="section"][data-i="${idx}"]`).value.trim() || 'Phần mặc định';
+            const group = setupArea.querySelector(`[data-k="group"][data-i="${idx}"]`).value.trim() || 'Nhóm mặc định';
+            const conditionDependsOn = setupArea.querySelector(`[data-k="conditionDependsOn"][data-i="${idx}"]`).value.trim();
+            const conditionEquals = setupArea.querySelector(`[data-k="conditionEquals"][data-i="${idx}"]`).value.trim();
             const required = setupArea.querySelector(`[data-k="required"][data-i="${idx}"]`).value === '1';
             const options = setupArea
               .querySelector(`[data-k="options"][data-i="${idx}"]`)
-              .value.split('\n').map(v => v.trim()).filter(Boolean);
+              .value.split('\n').map((v) => v.trim()).filter(Boolean);
             return {
               title: el.value.trim(),
               section,
+              group,
+              condition: conditionDependsOn && conditionEquals
+                ? { dependsOnTitle: conditionDependsOn, equalsValue: conditionEquals }
+                : null,
               type,
               required,
               options,
             };
           });
 
-          const emails = document.getElementById('emailsInput').value.split('\n').map(v => v.trim()).filter(Boolean);
+          const emails = document.getElementById('emailsInput').value.split('\n').map((v) => v.trim()).filter(Boolean);
+          const file = document.getElementById('emailsExcelFile').files[0];
+          const excelBase64 = file ? await fileToBase64(file) : null;
 
           const res = await fetch(`/api/surveys/${surveyId}/setup`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ questions: parsedQuestions, emails })
+            body: JSON.stringify({ questions: parsedQuestions, emails, excelBase64 }),
           });
 
           if (!res.ok) {
@@ -884,6 +1306,16 @@
           const j = await res.json();
           alert(`Đã lưu. Import mới: ${j.imported} email`);
           await openSurveySetup(surveyId);
+          await loadSurveys();
+        };
+
+        document.getElementById('previewSurveyBtn').onclick = async () => {
+          const preview = await (await fetch(`/api/surveys/${surveyId}/preview`)).json();
+          const sample = (preview.questions || [])
+            .slice(0, 10)
+            .map((q, i) => `${i + 1}. [${q.section || 'Phần mặc định'} / ${q.group || 'Nhóm mặc định'}] ${q.title}`)
+            .join('\n');
+          alert(`Preview khảo sát: ${preview.survey.name} (${preview.survey.company_name})\nHiển thị ${preview.questionsPerPage} câu/màn\n\n${sample}`);
         };
 
         document.getElementById('sendSurveyBtn').onclick = async () => {
@@ -895,20 +1327,19 @@
               return;
             }
 
-            let msg = `Đã xử lý gửi: thành công ${j.sent}, lỗi ${j.failed}.`;
+            let msg = `Đã xử lý gửi email mới: thành công ${j.sent}, lỗi ${j.failed}.`;
             if (j.mode === 'dev') {
-              const preview = (j.previewLinks || [])
+              const previewLinks = (j.previewLinks || [])
                 .slice(0, 3)
-                .map(v => `${v.email}: ${v.link}`)
+                .map((v) => `${v.email}: ${v.link}`)
                 .join('\n');
-              msg += `\n\nSMTP chưa cấu hình nên hệ thống đang ở DEV mode (không gửi inbox thật).`;
-              if (preview) msg += `\n\nLink test:\n${preview}`;
+              msg += `\n\nSMTP chưa cấu hình nên hệ thống đang ở DEV mode.`;
+              if (previewLinks) msg += `\n\nLink test:\n${previewLinks}`;
             }
             if ((j.failures || []).length) {
-              const failText = j.failures.slice(0, 3).map(v => `${v.email}: ${v.reason}`).join('\n');
+              const failText = j.failures.slice(0, 3).map((v) => `${v.email}: ${v.reason}`).join('\n');
               msg += `\n\nLỗi gửi:\n${failText}`;
             }
-
             alert(msg);
             await openSurveySetup(surveyId);
             await loadSurveys();
@@ -923,10 +1354,9 @@
         if (!surveyId) return;
 
         const data = await (await fetch(`/api/dashboard/${surveyId}`)).json();
-
         const metric = data.metrics;
         const scaleRows = data.scaleAverages
-          .map(r => `<tr><td>${escapeHtml(r.title)}</td><td>${r.avg_score ? Number(r.avg_score).toFixed(2) : '-'}</td><td>${r.samples}</td></tr>`)
+          .map((r) => `<tr><td>${escapeHtml(r.title)}</td><td>${r.avg_score ? Number(r.avg_score).toFixed(2) : '-'}</td><td>${r.samples}</td></tr>`)
           .join('');
 
         document.getElementById('dashboardArea').innerHTML = `
@@ -934,7 +1364,7 @@
             <div class="kpi"><div>Số phản hồi hợp lệ</div><b>${metric.completed}</b></div>
             <div class="kpi"><div>Câu hỏi scale</div><b>${data.scaleAverages.length}</b></div>
             <div class="kpi"><div>Điểm TB toàn khảo sát</div><b>${data.scaleAverages.length ? (data.scaleAverages.reduce((s, r) => s + (r.avg_score || 0), 0) / data.scaleAverages.length).toFixed(2) : '-'}</b></div>
-            <div class="kpi"><div>Mẫu lớn nhất/câu</div><b>${data.scaleAverages.length ? Math.max(...data.scaleAverages.map(v => v.samples || 0)) : 0}</b></div>
+            <div class="kpi"><div>Mẫu lớn nhất/câu</div><b>${data.scaleAverages.length ? Math.max(...data.scaleAverages.map((v) => v.samples || 0)) : 0}</b></div>
           </div>
 
           <div class="charts">
@@ -949,7 +1379,6 @@
             <thead><tr><th>Câu hỏi</th><th>Điểm TB</th><th>Mẫu</th></tr></thead>
             <tbody>${scaleRows || '<tr><td colspan="3">Chưa có dữ liệu</td></tr>'}</tbody>
           </table>
-
         `;
 
         renderCharts(data.scaleAverages);
@@ -964,19 +1393,19 @@
         state.charts.scale = new Chart(scaleCtx, {
           type: 'bar',
           data: {
-            labels: scaleAverages.map(v => v.title.length > 28 ? `${v.title.slice(0, 28)}...` : v.title),
+            labels: scaleAverages.map((v) => v.title.length > 28 ? `${v.title.slice(0, 28)}...` : v.title),
             datasets: [{
               label: 'Điểm trung bình',
-              data: scaleAverages.map(v => v.avg_score ? Number(v.avg_score.toFixed(2)) : 0),
-              backgroundColor: '#0b8f9b'
-            }]
+              data: scaleAverages.map((v) => (v.avg_score ? Number(v.avg_score.toFixed(2)) : 0)),
+              backgroundColor: '#0b8f9b',
+            }],
           },
           options: {
             responsive: true,
             scales: {
-              y: { min: 0, max: 5 }
-            }
-          }
+              y: { min: 0, max: 5 },
+            },
+          },
         });
       }
 
@@ -987,7 +1416,8 @@
         document.getElementById('systemStatus').innerHTML = `
           DB: <b>${escapeHtml(data.dbProvider)}</b> |
           SMTP: <span class="${smtpClass}">${data.smtp?.ok ? 'OK' : escapeHtml(data.smtp?.reason || 'Not ready')}</span> |
-          Nhắc tự động sau <b>${data.reminderAfterDays}</b> ngày
+          Nhắc tự động sau <b>${data.reminderAfterHours}</b> giờ |
+          Link hết hạn sau <b>${data.surveyExpireDays}</b> ngày
         `;
       }
 
@@ -1001,7 +1431,7 @@
         const res = await fetch('/api/system/test-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to })
+          body: JSON.stringify({ to }),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -1013,16 +1443,19 @@
       };
 
       document.getElementById('refreshDashboardBtn').onclick = refreshDashboard;
+      document.getElementById('surveyStatusFilter').onchange = renderSurveyList;
       document.getElementById('logoutBtn').onclick = async () => {
         await nativeFetch('/api/auth/logout', { method: 'POST' });
         location.href = '/login';
       };
 
       async function boot() {
+        await loadCurrentUser();
         await loadSystemStatus();
         await loadTemplates();
         await loadSurveys();
         await refreshDashboard();
+        renderTemplateQuestions();
       }
 
       setInterval(refreshDashboard, 10000);
