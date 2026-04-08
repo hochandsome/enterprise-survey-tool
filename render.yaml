@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: enterprise-survey-tool
+    name: jw
     env: node
     plan: free
     buildCommand: npm install
