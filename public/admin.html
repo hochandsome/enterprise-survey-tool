@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Survey Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #eef4ff;
+        --card: rgba(255, 255, 255, 0.8);
+        --ink: #101828;
+        --muted: #475467;
+        --brand: #0f7bff;
+        --brand-2: #00b8d9;
+        --accent: #78f0a0;
+        --line: #d1ddff;
+        --shadow: 0 20px 40px rgba(17, 24, 39, 0.1);
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Space Grotesk", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at 10% 15%, rgba(15, 123, 255, 0.22), transparent 32%),
+          radial-gradient(circle at 85% 22%, rgba(0, 184, 217, 0.25), transparent 28%),
+          radial-gradient(circle at 75% 80%, rgba(120, 240, 160, 0.16), transparent 30%),
+          var(--bg);
+        color: var(--ink);
+        min-height: 100vh;
+      }
+
+      .wrap {
+        max-width: 1100px;
+        margin: 24px auto 80px;
+        padding: 0 16px;
+      }
+
+      .title {
+        font-size: 34px;
+        letter-spacing: -0.02em;
+        margin-bottom: 8px;
+      }
+
+      .sub {
+        color: var(--muted);
+        margin-top: 0;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        backdrop-filter: blur(10px);
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: var(--shadow);
+      }
+
+      h2 {
+        margin-top: 4px;
+        font-size: 19px;
+        letter-spacing: -0.01em;
+      }
+
+      label {
+        font-size: 13px;
+        color: var(--muted);
+        display: block;
+        margin-top: 10px;
+      }
+
+      input, select, textarea, button {
+        width: 100%;
+        margin-top: 6px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 11px 12px;
+        font-size: 14px;
+        font-family: inherit;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+      }
+
+      input:focus, select:focus, textarea:focus {
+        outline: none;
+        border-color: var(--brand);
+        box-shadow: 0 0 0 4px rgba(15, 123, 255, 0.15);
+      }
+
+      button {
+        border: 0;
+        background: linear-gradient(130deg, var(--brand), var(--brand-2));
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 10px 18px rgba(15, 123, 255, 0.25);
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      button.secondary {
+        background: linear-gradient(180deg, #f9fbff, #ebf2ff);
+        color: #0e3a79;
+        border: 1px solid var(--line);
+        box-shadow: none;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+      }
+
+      .kpi {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: linear-gradient(160deg, rgba(255,255,255,0.95), rgba(236,245,255,0.95));
+      }
+
+      .kpi b {
+        font-size: 23px;
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      .charts {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .chart-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: linear-gradient(170deg, rgba(255,255,255,0.92), rgba(234, 244, 255, 0.92));
+      }
+
+      .hint {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .status-ok {
+        color: #0a7a36;
+        font-weight: 600;
+      }
+
+      .status-bad {
+        color: #b42318;
+        font-weight: 600;
+      }
+
+      .question-item {
+        border: 1px dashed #9cb8ff;
+        border-radius: 12px;
+        padding: 12px;
+        margin-top: 10px;
+        background: rgba(252, 255, 255, 0.8);
+      }
+
+      .pill {
+        display: inline-block;
+        font-size: 12px;
+        background: linear-gradient(130deg, rgba(15, 123, 255, 0.14), rgba(120, 240, 160, 0.24));
+        color: #0c3f73;
+        padding: 4px 8px;
+        border-radius: 999px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+
+      th, td {
+        text-align: left;
+        border-bottom: 1px solid var(--line);
+        padding: 10px 6px;
+        font-size: 13px;
+      }
+
+      tr:hover td {
+        background: rgba(15, 123, 255, 0.05);
+      }
+
+      @media (max-width: 920px) {
+        .grid { grid-template-columns: 1fr; }
+        .kpi-grid { grid-template-columns: 1fr 1fr; }
+        .charts { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1 class="title">Survey Admin Console</h1>
+      <p class="sub">Tạo template, tạo cuộc khảo sát cho doanh nghiệp, gửi mail và theo dõi realtime dashboard.</p>
+
+      <div class="grid">
+        <section class="card">
+          <h2>1) Tạo Template</h2>
+          <label>Tên template <input id="templateName" placeholder="Khảo sát hài lòng Q2" /></label>
+          <label>Mô tả <textarea id="templateDesc" rows="2" placeholder="Dùng cho khảo sát nhân sự"></textarea></label>
+
+          <div class="question-item">
+            <span class="pill">Thêm câu hỏi</span>
+            <label>Tiêu đề câu hỏi <input id="qTitle" placeholder="Bạn hài lòng mức nào với môi trường làm việc?" /></label>
+            <div class="row">
+              <label>Loại
+                <select id="qType">
+                  <option value="scale">Mức độ 1-5</option>
+                  <option value="multiple_choice">Multiple Choice</option>
+                  <option value="short_text">Text ngắn</option>
+                </select>
+              </label>
+              <label>Required
+                <select id="qRequired">
+                  <option value="1">Có</option>
+                  <option value="0">Không</option>
+                </select>
+              </label>
+            </div>
+            <label>Options (mỗi dòng 1 option, chỉ dùng cho multiple choice)
+              <textarea id="qOptions" rows="3" placeholder="Rất hài lòng&#10;Hài lòng&#10;Bình thường&#10;Chưa hài lòng"></textarea>
+            </label>
+            <button class="secondary" id="addQuestionBtn">Thêm câu hỏi</button>
+          </div>
+
+          <div id="templateQuestionList"></div>
+          <button id="saveTemplateBtn" style="margin-top: 12px;">Lưu template</button>
+        </section>
+
+        <section class="card">
+          <h2>2) Tạo Cuộc Khảo Sát</h2>
+          <label>Doanh nghiệp <input id="companyName" placeholder="ACME Vietnam" /></label>
+          <label>Tên cuộc khảo sát <input id="surveyName" placeholder="Khảo sát hài lòng tháng 04" /></label>
+          <label>Template
+            <select id="templateSelect"></select>
+          </label>
+          <label>Deadline (optional)
+            <input id="deadlineAt" type="datetime-local" />
+          </label>
+          <button id="createSurveyBtn">Tạo survey từ template</button>
+
+          <div id="setupArea" style="display:none; margin-top: 12px;"></div>
+        </section>
+      </div>
+
+      <section class="card" style="margin-top:16px;">
+        <h2>3) Dashboard Realtime</h2>
+        <div id="systemStatus" class="hint">Đang kiểm tra hệ thống...</div>
+        <div class="row">
+          <label>Email test SMTP
+            <input id="smtpTestEmail" placeholder="you@company.com" />
+          </label>
+          <div style="display:flex; align-items:flex-end;">
+            <button id="testSmtpBtn" class="secondary">Gửi email test</button>
+          </div>
+        </div>
+        <label>Chọn survey
+          <select id="surveyDashboardSelect"></select>
+        </label>
+        <button id="refreshDashboardBtn" class="secondary">Refresh</button>
+        <div id="dashboardArea" style="margin-top:12px;"></div>
+      </section>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+    <script>
+      const state = {
+        templateQuestions: [],
+        templates: [],
+        surveys: [],
+        currentSurveyId: null,
+        charts: {
+          status: null,
+          scale: null,
+        },
+      };
+
+      function escapeHtml(text) {
+        return String(text)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function questionToEditorRow(q, idx) {
+        return `
+          <div class="question-item">
+            <b>Câu ${idx + 1}:</b> ${escapeHtml(q.title)}
+            <div style="font-size:12px; color:#48606b;">${q.type} | required: ${q.required ? "yes" : "no"}</div>
+          </div>
+        `;
+      }
+
+      async function loadTemplates() {
+        const data = await (await fetch('/api/templates')).json();
+        state.templates = data;
+
+        const select = document.getElementById('templateSelect');
+        select.innerHTML = data.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+      }
+
+      async function loadSurveys() {
+        const data = await (await fetch('/api/surveys')).json();
+        state.surveys = data;
+
+        const dd = document.getElementById('surveyDashboardSelect');
+        dd.innerHTML = data.map(s => `<option value="${s.id}">${escapeHtml(s.name)} - ${escapeHtml(s.company_name)}</option>`).join('');
+      }
+
+      function renderTemplateQuestions() {
+        document.getElementById('templateQuestionList').innerHTML = state.templateQuestions.map(questionToEditorRow).join('');
+      }
+
+      document.getElementById('addQuestionBtn').onclick = () => {
+        const title = document.getElementById('qTitle').value.trim();
+        const type = document.getElementById('qType').value;
+        const required = document.getElementById('qRequired').value === '1';
+        const options = document.getElementById('qOptions').value.split('\n').map(v => v.trim()).filter(Boolean);
+
+        if (!title) {
+          alert('Cần nhập tiêu đề câu hỏi');
+          return;
+        }
+
+        state.templateQuestions.push({ title, type, required, options });
+        renderTemplateQuestions();
+
+        document.getElementById('qTitle').value = '';
+        document.getElementById('qOptions').value = '';
+      };
+
+      document.getElementById('saveTemplateBtn').onclick = async () => {
+        const name = document.getElementById('templateName').value.trim();
+        const description = document.getElementById('templateDesc').value.trim();
+
+        if (!name || state.templateQuestions.length === 0) {
+          alert('Template cần có tên và ít nhất 1 câu hỏi');
+          return;
+        }
+
+        const res = await fetch('/api/templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, description, questions: state.templateQuestions })
+        });
+
+        if (!res.ok) {
+          alert('Không lưu được template');
+          return;
+        }
+
+        alert('Đã lưu template');
+        state.templateQuestions = [];
+        renderTemplateQuestions();
+        document.getElementById('templateName').value = '';
+        document.getElementById('templateDesc').value = '';
+        await loadTemplates();
+      };
+
+      document.getElementById('createSurveyBtn').onclick = async () => {
+        const companyName = document.getElementById('companyName').value.trim();
+        const surveyName = document.getElementById('surveyName').value.trim();
+        const templateId = Number(document.getElementById('templateSelect').value);
+        const deadlineAt = document.getElementById('deadlineAt').value || null;
+
+        if (!companyName || !surveyName || !templateId) {
+          alert('Điền đủ thông tin tạo survey');
+          return;
+        }
+
+        const res = await fetch('/api/surveys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ companyName, templateId, surveyName, deadlineAt })
+        });
+
+        if (!res.ok) {
+          alert('Tạo survey thất bại');
+          return;
+        }
+
+        const json = await res.json();
+        state.currentSurveyId = json.id;
+        await openSurveySetup(json.id);
+        await loadSurveys();
+      };
+
+      async function openSurveySetup(surveyId) {
+        const data = await (await fetch(`/api/surveys/${surveyId}/setup`)).json();
+
+        const qHtml = data.questions.map((q, idx) => {
+          const options = (q.options || []).join('\n');
+          return `
+            <div class="question-item">
+              <div><b>Câu ${idx + 1}</b></div>
+              <input data-k="title" data-i="${idx}" value="${escapeHtml(q.title)}" />
+              <div class="row">
+                <select data-k="type" data-i="${idx}">
+                  <option value="scale" ${q.type === 'scale' ? 'selected' : ''}>Mức độ 1-5</option>
+                  <option value="multiple_choice" ${q.type === 'multiple_choice' ? 'selected' : ''}>Multiple Choice</option>
+                  <option value="short_text" ${q.type === 'short_text' ? 'selected' : ''}>Text ngắn</option>
+                </select>
+                <select data-k="required" data-i="${idx}">
+                  <option value="1" ${q.required ? 'selected' : ''}>Required</option>
+                  <option value="0" ${!q.required ? 'selected' : ''}>Optional</option>
+                </select>
+              </div>
+              <textarea data-k="options" data-i="${idx}" rows="2" placeholder="Options cho multiple choice">${escapeHtml(options)}</textarea>
+            </div>
+          `;
+        }).join('');
+
+        const recipientsSample = data.recipients.map(r => `${r.email} (${r.status})`).join('\n');
+
+        const setupArea = document.getElementById('setupArea');
+        setupArea.style.display = 'block';
+        setupArea.innerHTML = `
+          <p><b>${escapeHtml(data.survey.name)}</b> | ${escapeHtml(data.survey.company_name)}</p>
+          <h3>Chỉnh câu hỏi survey riêng</h3>
+          ${qHtml}
+          <h3>Danh sách email nhân sự</h3>
+          <textarea id="emailsInput" rows="5" placeholder="mỗi dòng 1 email"></textarea>
+          <p style="color:#48606b; font-size:12px;">Đã có: ${data.recipients.length} người nhận</p>
+          <textarea rows="4" readonly>${escapeHtml(recipientsSample)}</textarea>
+          <div class="row" style="margin-top:10px;">
+            <button id="saveSetupBtn">Lưu setup</button>
+            <button id="sendSurveyBtn" class="secondary">Gửi khảo sát</button>
+          </div>
+        `;
+
+        document.getElementById('saveSetupBtn').onclick = async () => {
+          const parsedQuestions = [...setupArea.querySelectorAll('[data-k="title"]')].map((el, idx) => {
+            const type = setupArea.querySelector(`[data-k="type"][data-i="${idx}"]`).value;
+            const required = setupArea.querySelector(`[data-k="required"][data-i="${idx}"]`).value === '1';
+            const options = setupArea
+              .querySelector(`[data-k="options"][data-i="${idx}"]`)
+              .value.split('\n').map(v => v.trim()).filter(Boolean);
+            return {
+              title: el.value.trim(),
+              type,
+              required,
+              options,
+            };
+          });
+
+          const emails = document.getElementById('emailsInput').value.split('\n').map(v => v.trim()).filter(Boolean);
+
+          const res = await fetch(`/api/surveys/${surveyId}/setup`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ questions: parsedQuestions, emails })
+          });
+
+          if (!res.ok) {
+            alert('Lưu setup lỗi');
+            return;
+          }
+
+          const j = await res.json();
+          alert(`Đã lưu. Import mới: ${j.imported} email`);
+          await openSurveySetup(surveyId);
+        };
+
+        document.getElementById('sendSurveyBtn').onclick = async () => {
+          try {
+            const res = await fetch(`/api/surveys/${surveyId}/send`, { method: 'POST' });
+            const j = await res.json();
+            if (!res.ok) {
+              alert(j.error || 'Gửi thất bại');
+              return;
+            }
+
+            let msg = `Đã xử lý gửi: thành công ${j.sent}, lỗi ${j.failed}.`;
+            if (j.mode === 'dev') {
+              const preview = (j.previewLinks || [])
+                .slice(0, 3)
+                .map(v => `${v.email}: ${v.link}`)
+                .join('\n');
+              msg += `\n\nSMTP chưa cấu hình nên hệ thống đang ở DEV mode (không gửi inbox thật).`;
+              if (preview) msg += `\n\nLink test:\n${preview}`;
+            }
+            if ((j.failures || []).length) {
+              const failText = j.failures.slice(0, 3).map(v => `${v.email}: ${v.reason}`).join('\n');
+              msg += `\n\nLỗi gửi:\n${failText}`;
+            }
+
+            alert(msg);
+            await openSurveySetup(surveyId);
+            await loadSurveys();
+          } catch (e) {
+            alert(`Gửi thất bại: ${e.message || 'Lỗi không xác định'}`);
+          }
+        };
+      }
+
+      async function refreshDashboard() {
+        const surveyId = Number(document.getElementById('surveyDashboardSelect').value);
+        if (!surveyId) return;
+
+        const data = await (await fetch(`/api/dashboard/${surveyId}`)).json();
+
+        const metric = data.metrics;
+        const scaleRows = data.scaleAverages
+          .map(r => `<tr><td>${escapeHtml(r.title)}</td><td>${r.avg_score ? Number(r.avg_score).toFixed(2) : '-'}</td><td>${r.samples}</td></tr>`)
+          .join('');
+
+        const recipients = data.recipients
+          .map(r => `<tr><td>${escapeHtml(r.email)}</td><td>${r.status}</td><td>${r.reminder_count}</td><td>${r.last_sent_at || '-'}</td></tr>`)
+          .join('');
+
+        document.getElementById('dashboardArea').innerHTML = `
+          <div class="kpi-grid">
+            <div class="kpi"><div>Tổng gửi</div><b>${metric.total}</b></div>
+            <div class="kpi"><div>Đã hoàn thành</div><b>${metric.completed}</b></div>
+            <div class="kpi"><div>Đang làm dở</div><b>${metric.inProgress}</b></div>
+            <div class="kpi"><div>Tỉ lệ hoàn thành</div><b>${metric.completionRate}%</b></div>
+          </div>
+
+          <div class="charts">
+            <div class="chart-card">
+              <h3>Trạng thái người nhận</h3>
+              <canvas id="statusChart" height="180"></canvas>
+            </div>
+            <div class="chart-card">
+              <h3>Điểm trung bình câu hỏi scale</h3>
+              <canvas id="scaleChart" height="180"></canvas>
+            </div>
+          </div>
+
+          <h3>Điểm trung bình câu hỏi scale (bảng)</h3>
+          <table>
+            <thead><tr><th>Câu hỏi</th><th>Điểm TB</th><th>Mẫu</th></tr></thead>
+            <tbody>${scaleRows || '<tr><td colspan="3">Chưa có dữ liệu</td></tr>'}</tbody>
+          </table>
+
+          <h3>Realtime trạng thái người nhận</h3>
+          <table>
+            <thead><tr><th>Email</th><th>Status</th><th>Remind</th><th>Last Sent</th></tr></thead>
+            <tbody>${recipients || '<tr><td colspan="4">Chưa có người nhận</td></tr>'}</tbody>
+          </table>
+        `;
+
+        renderCharts(metric, data.scaleAverages);
+      }
+
+      function renderCharts(metric, scaleAverages) {
+        const statusCtx = document.getElementById('statusChart');
+        const scaleCtx = document.getElementById('scaleChart');
+        if (!statusCtx || !scaleCtx || !window.Chart) return;
+
+        if (state.charts.status) state.charts.status.destroy();
+        if (state.charts.scale) state.charts.scale.destroy();
+
+        state.charts.status = new Chart(statusCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Completed', 'In Progress', 'Sent', 'Pending'],
+            datasets: [{
+              data: [metric.completed, metric.inProgress, metric.sent, metric.pending],
+              backgroundColor: ['#06d6a0', '#ffb703', '#118ab2', '#8d99ae']
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } }
+          }
+        });
+
+        state.charts.scale = new Chart(scaleCtx, {
+          type: 'bar',
+          data: {
+            labels: scaleAverages.map(v => v.title.length > 28 ? `${v.title.slice(0, 28)}...` : v.title),
+            datasets: [{
+              label: 'Điểm trung bình',
+              data: scaleAverages.map(v => v.avg_score ? Number(v.avg_score.toFixed(2)) : 0),
+              backgroundColor: '#0b8f9b'
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: { min: 0, max: 5 }
+            }
+          }
+        });
+      }
+
+      async function loadSystemStatus() {
+        const res = await fetch('/api/system/status');
+        const data = await res.json();
+        const smtpClass = data.smtp?.ok ? 'status-ok' : 'status-bad';
+        document.getElementById('systemStatus').innerHTML = `
+          DB: <b>${escapeHtml(data.dbProvider)}</b> |
+          SMTP: <span class="${smtpClass}">${data.smtp?.ok ? 'OK' : escapeHtml(data.smtp?.reason || 'Not ready')}</span> |
+          Nhắc tự động sau <b>${data.reminderAfterDays}</b> ngày
+        `;
+      }
+
+      document.getElementById('testSmtpBtn').onclick = async () => {
+        const to = document.getElementById('smtpTestEmail').value.trim();
+        if (!to) {
+          alert('Nhập email nhận test SMTP');
+          return;
+        }
+
+        const res = await fetch('/api/system/test-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || 'Gửi test email thất bại');
+          return;
+        }
+        alert(`Đã gửi email test đến ${data.to}`);
+        await loadSystemStatus();
+      };
+
+      document.getElementById('refreshDashboardBtn').onclick = refreshDashboard;
+
+      async function boot() {
+        await loadSystemStatus();
+        await loadTemplates();
+        await loadSurveys();
+        await refreshDashboard();
+      }
+
+      setInterval(refreshDashboard, 10000);
+      boot();
+    </script>
+  </body>
+</html>

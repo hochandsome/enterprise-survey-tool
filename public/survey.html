@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Khảo sát nhân sự</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #eef3ff;
+        --card: rgba(255, 255, 255, 0.82);
+        --ink: #0f172a;
+        --muted: #475467;
+        --brand: #0f7bff;
+        --brand-2: #00b8d9;
+        --line: #cfdcff;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 8% 12%, rgba(15, 123, 255, 0.2), transparent 36%),
+          radial-gradient(circle at 92% 18%, rgba(0, 184, 217, 0.2), transparent 34%),
+          radial-gradient(circle at 68% 80%, rgba(90, 200, 250, 0.14), transparent 30%),
+          var(--bg);
+        color: var(--ink);
+        font-family: "Space Grotesk", "Segoe UI", sans-serif;
+      }
+
+      .container {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 18px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 24px 50px rgba(17, 24, 39, 0.12);
+      }
+
+      .meta {
+        color: var(--muted);
+        font-size: 13px;
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      .progress {
+        margin-top: 10px;
+        width: 100%;
+        height: 13px;
+        background: #e6eeff;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      .progress > div {
+        height: 100%;
+        width: 0;
+        background: linear-gradient(90deg, var(--brand), var(--brand-2));
+        transition: width 0.2s ease;
+      }
+
+      h1 {
+        margin: 8px 0;
+        font-size: 25px;
+        letter-spacing: -0.02em;
+      }
+
+      .question {
+        margin-top: 18px;
+      }
+
+      .question-title {
+        font-size: 18px;
+        line-height: 1.4;
+        margin-bottom: 12px;
+      }
+
+      .req {
+        color: #dc2626;
+      }
+
+      textarea, input[type="text"], button {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        font-size: 16px;
+        font-family: inherit;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+      }
+
+      textarea:focus, input[type="text"]:focus {
+        outline: none;
+        border-color: var(--brand);
+        box-shadow: 0 0 0 4px rgba(15, 123, 255, 0.15);
+      }
+
+      textarea { min-height: 96px; }
+
+      .choice {
+        display: block;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+        margin-top: 8px;
+        font-size: 16px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(243,247,255,0.98));
+        cursor: pointer;
+      }
+
+      .scale {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+      }
+
+      .scale button {
+        padding: 13px 0;
+        font-size: 18px;
+        background: linear-gradient(180deg, #f8fbff, #edf3ff);
+      }
+
+      .scale button.active {
+        background: linear-gradient(135deg, var(--brand), var(--brand-2));
+        color: white;
+        border-color: var(--brand);
+        box-shadow: 0 8px 18px rgba(15, 123, 255, 0.25);
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .primary {
+        background: linear-gradient(130deg, var(--brand), var(--brand-2));
+        color: white;
+        border: 1px solid var(--brand);
+        box-shadow: 0 12px 20px rgba(15, 123, 255, 0.22);
+      }
+
+      .secondary {
+        background: linear-gradient(180deg, #f8fbff, #edf2ff);
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 8px;
+      }
+
+      .done {
+        text-align: center;
+        padding: 30px 16px;
+      }
+
+      @media (max-width: 540px) {
+        .container { padding: 10px; }
+        .card { border-radius: 12px; padding: 14px; }
+        .question-title { font-size: 17px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card" id="app">Đang tải khảo sát...</div>
+    </div>
+
+    <script>
+      const token = location.pathname.split('/').pop();
+      const state = {
+        survey: null,
+        questions: [],
+        answers: {},
+        index: 0,
+        autosaveTimer: null,
+      };
+
+      function esc(text) {
+        return String(text)
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#039;');
+      }
+
+      function currentQuestion() {
+        return state.questions[state.index];
+      }
+
+      function setAnswer(value) {
+        const q = currentQuestion();
+        state.answers[String(q.id)] = value;
+        scheduleAutosave();
+      }
+
+      function renderDone() {
+        document.getElementById('app').innerHTML = `
+          <div class="done">
+            <h1>Cảm ơn bạn!</h1>
+            <p>Khảo sát đã được ghi nhận ẩn danh.</p>
+          </div>
+        `;
+      }
+
+      function renderQuestion() {
+        const q = currentQuestion();
+        if (!q) return;
+
+        const total = state.questions.length;
+        const progress = Math.round(((state.index + 1) / total) * 100);
+        const answer = state.answers[String(q.id)];
+
+        let inputHtml = '';
+        if (q.type === 'short_text') {
+          inputHtml = `<textarea id="textAnswer" placeholder="Nhập câu trả lời...">${answer ? esc(answer) : ''}</textarea>`;
+        }
+
+        if (q.type === 'multiple_choice') {
+          inputHtml = (q.options || []).map(opt => {
+            const active = answer === opt ? 'style="border-color:#0f7bff; background:linear-gradient(180deg, #edf5ff, #e3f8ff); box-shadow: 0 8px 18px rgba(15, 123, 255, 0.18);"' : '';
+            return `<button class="choice" ${active} onclick="chooseOption('${esc(opt)}')">${esc(opt)}</button>`;
+          }).join('');
+        }
+
+        if (q.type === 'scale') {
+          inputHtml = `<div class="scale">${[1,2,3,4,5].map(v => `
+            <button class="${answer === v ? 'active' : ''}" onclick="chooseScale(${v})">${v}</button>
+          `).join('')}</div>`;
+        }
+
+        document.getElementById('app').innerHTML = `
+          <div class="meta">${esc(state.survey.company_name)} | Thời gian làm dự kiến: 3-5 phút</div>
+          <h1>${esc(state.survey.name)}</h1>
+          <div class="progress"><div style="width:${progress}%;"></div></div>
+          <div class="hint">Bước ${state.index + 1}/${total} • Tiến độ ${progress}% • Tự động lưu bản nháp</div>
+
+          <div class="question">
+            <div class="question-title">${esc(q.title)} ${q.required ? '<span class="req">*</span>' : ''}</div>
+            ${inputHtml}
+          </div>
+
+          <div class="actions">
+            <button class="secondary" onclick="prevQuestion()" ${state.index === 0 ? 'disabled' : ''}>Quay lại</button>
+            <button class="primary" onclick="nextQuestion()">${state.index === total - 1 ? 'Gửi khảo sát' : 'Tiếp tục'}</button>
+          </div>
+          <div class="hint">Nếu bạn thoát trình duyệt, lần sau mở lại link mail sẽ tiếp tục tại đúng câu này.</div>
+        `;
+
+        if (q.type === 'short_text') {
+          const el = document.getElementById('textAnswer');
+          el.addEventListener('input', (e) => setAnswer(e.target.value));
+        }
+      }
+
+      function chooseScale(v) {
+        setAnswer(v);
+        renderQuestion();
+      }
+
+      function chooseOption(v) {
+        setAnswer(v);
+        renderQuestion();
+      }
+
+      async function saveDraft() {
+        await fetch(`/api/respond/${token}/draft`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentIndex: state.index, answers: state.answers })
+        });
+      }
+
+      function scheduleAutosave() {
+        clearTimeout(state.autosaveTimer);
+        state.autosaveTimer = setTimeout(() => {
+          saveDraft().catch(() => {});
+        }, 500);
+      }
+
+      async function nextQuestion() {
+        const q = currentQuestion();
+        const answer = state.answers[String(q.id)];
+        if (q.required && (answer === undefined || answer === null || answer === '')) {
+          alert('Bạn cần trả lời câu hỏi bắt buộc');
+          return;
+        }
+
+        if (state.index < state.questions.length - 1) {
+          state.index += 1;
+          await saveDraft();
+          renderQuestion();
+          return;
+        }
+
+        await saveDraft();
+        const res = await fetch(`/api/respond/${token}/submit`, { method: 'POST' });
+        if (!res.ok) {
+          const j = await res.json();
+          alert(j.error || 'Không gửi được khảo sát');
+          return;
+        }
+        renderDone();
+      }
+
+      async function prevQuestion() {
+        if (state.index <= 0) return;
+        state.index -= 1;
+        await saveDraft();
+        renderQuestion();
+      }
+
+      async function boot() {
+        const res = await fetch(`/api/respond/${token}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          document.getElementById('app').innerHTML = `<div class="done"><h1>Link không hợp lệ</h1></div>`;
+          return;
+        }
+
+        if (data.alreadyDone) {
+          renderDone();
+          return;
+        }
+
+        state.survey = data.survey;
+        state.questions = data.questions;
+        state.answers = data.draft.answers || {};
+        state.index = data.draft.currentIndex || 0;
+        if (state.index >= state.questions.length) {
+          state.index = 0;
+        }
+
+        renderQuestion();
+      }
+
+      window.chooseScale = chooseScale;
+      window.chooseOption = chooseOption;
+      window.nextQuestion = nextQuestion;
+      window.prevQuestion = prevQuestion;
+
+      boot();
+    </script>
+  </body>
+</html>
