@@ -1,3 +1,19 @@
+// Xóa template (chỉ admin)
+app.delete("/api/templates/:id", (req, res) => {
+  if (req.adminRole !== "admin") {
+    return res.status(403).json({ error: "Chỉ admin mới được xóa template" });
+  }
+  const templateId = Number(req.params.id);
+  const data = readDb();
+  const exists = data.templates.some((t) => t.id === templateId);
+  if (!exists) {
+    return res.status(404).json({ error: "Không tìm thấy template" });
+  }
+  data.templates = data.templates.filter((t) => t.id !== templateId);
+  data.templateQuestions = data.templateQuestions.filter((q) => q.templateId !== templateId);
+  writeDb(data);
+  res.json({ ok: true });
+});
 require("dotenv").config();
 
 const path = require("path");

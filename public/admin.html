@@ -837,6 +837,17 @@
         editorSelect.innerHTML = data.length
           ? data.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('')
           : '<option value="">Chưa có template</option>';
+
+        // Thêm danh sách template với nút xóa nếu là admin
+        const templateListArea = document.getElementById('templateListArea');
+        if (templateListArea) {
+          templateListArea.innerHTML = data.map((t) => `
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span>${escapeHtml(t.name)}</span>
+              ${state.currentUser?.role === 'admin' ? `<button class="secondary" data-delete-template="${t.id}" style="color:#b91c1c;border-color:#ef4444;width:auto;padding:4px 10px;">Xóa</button>` : ''}
+            </div>
+          `).join('');
+        }
       }
 
       async function loadSurveys() {
@@ -955,9 +966,10 @@
         if (surveyId) {
           switchTab('survey');
           await openSurveySetup(surveyId);
-          document.getElementById('surveyDashboardSelect').value = String(surveyId);
-          switchTab('report');
-          await refreshDashboard();
+          // Không chuyển sang tab báo cáo nữa
+          // document.getElementById('surveyDashboardSelect').value = String(surveyId);
+          // switchTab('report');
+          // await refreshDashboard();
           window.scrollTo({ top: 0, behavior: 'smooth' });
           return;
         }
@@ -1255,7 +1267,7 @@
         }).join('');
 
         const recipientRows = progress.recipients
-          .map((r) => `<tr><td>${escapeHtml(r.email)}</td><td>${escapeHtml(r.status)}</td><td>${r.reminder_count}</td><td>${r.last_sent_at || '-'}</td></tr>`)
+          .map((r) => `<tr><td>${escapeHtml(r.email)}</td><td>${escapeHtml(r.status)}</td><td>${r.reminder_count}</td><td>${r.last_sent_at || '-'}</td><td>${(r.reminder_count || 0) + (r.last_sent_at ? 1 : 0)}</td></tr>`)
           .join('');
 
         const setupArea = document.getElementById('setupArea');
@@ -1298,8 +1310,8 @@
 
           <h3>Tiến độ gửi mail và hoàn thành theo nhân sự</h3>
           <table>
-            <thead><tr><th>Email</th><th>Trạng thái</th><th>Nhắc</th><th>Lần gửi gần nhất</th></tr></thead>
-            <tbody>${recipientRows || '<tr><td colspan="4">Chưa có người nhận</td></tr>'}</tbody>
+            <thead><tr><th>Email</th><th>Trạng thái</th><th>Nhắc</th><th>Lần gửi gần nhất</th><th>Số email đã gửi</th></tr></thead>
+            <tbody>${recipientRows || '<tr><td colspan="5">Chưa có người nhận</td></tr>'}</tbody>
           </table>
 
           <div class="row" style="margin-top:10px;">
@@ -1420,7 +1432,7 @@
         const data = await (await fetch(`/api/dashboard/${surveyId}`)).json();
         const metric = data.metrics;
         const scaleRows = data.scaleAverages
-          .map((r) => `<tr><td>${escapeHtml(r.title)}</td><td>${r.avg_score ? Number(r.avg_score).toFixed(2) : '-'}</td><td>${r.samples}</td></tr>`)
+          .map((r) => `<tr><td>${escapeHtml(r.title)}</td><td>${r.avg_score ? Number(r.avg_score.toFixed(2)) : '-'}</td><td>${r.samples}</td></tr>`)
           .join('');
 
         document.getElementById('dashboardArea').innerHTML = `
